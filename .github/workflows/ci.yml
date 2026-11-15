@@ -1,0 +1,133 @@
+name: Pull request CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  checks: read
+  pull-requests: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      api_changed: ${{ steps.affected.outputs.api }}
+      worker_changed: ${{ steps.affected.outputs.worker }}
+    steps:
+      - name: Checkout full PR history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 10.12.4
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Validate commit range
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: pnpm ci:commit-range
+      - name: Determine affected workspaces
+        id: affected
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: pnpm ci:affected
+      - name: Lint affected workspaces
+        if: steps.affected.outputs.has_code == 'true'
+        run: pnpm exec turbo run lint --filter="...[${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}]"
+      - name: Typecheck affected workspaces
+        if: steps.affected.outputs.has_code == 'true'
+        run: pnpm exec turbo run typecheck --filter="...[${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}]"
+      - name: Unit and policy tests
+        run: pnpm test:ci
+      - name: Unit tests for affected workspaces
+        if: steps.affected.outputs.has_code == 'true'
+        run: pnpm exec turbo run test --filter="...[${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}]"
+      - name: API integration tests
+        if: steps.affected.outputs.api == 'true'
+        run: pnpm --filter @cafeteria/api test:integration
+      - name: Worker integration tests
+        if: steps.affected.outputs.worker == 'true'
+        run: pnpm --filter @cafeteria/worker test:integration
+      - name: Build affected workspaces
+        if: steps.affected.outputs.has_code == 'true'
+        run: pnpm exec turbo run build --filter="...[${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}]"
+
+  security:
+    name: security
+    uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: read
+
+  images:
+    name: images
+    needs: [quality, security]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build API image
+        if: needs.quality.outputs.api_changed == 'true'
+        run: docker build --pull --tag cafeteria-api:${{ github.event.pull_request.head.sha }} --file apps/api/Dockerfile .
+      - name: Scan API image for high and critical vulnerabilities
+        if: needs.quality.outputs.api_changed == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: cafeteria-api:${{ github.event.pull_request.head.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: false
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+      - name: Build worker image
+        if: needs.quality.outputs.worker_changed == 'true'
+        run: docker build --pull --tag cafeteria-worker:${{ github.event.pull_request.head.sha }} --file apps/worker/Dockerfile .
+      - name: Scan worker image for high and critical vulnerabilities
+        if: needs.quality.outputs.worker_changed == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: cafeteria-worker:${{ github.event.pull_request.head.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: false
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+
+  report:
+    name: pr-report
+    if: always()
+    needs: [quality, security, images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Report each job state and duration
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/ci/report-workflow-run.mjs
