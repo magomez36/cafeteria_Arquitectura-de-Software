@@ -11,6 +11,8 @@ const securityPath = path.join(root, '.github/workflows/security.yml');
 
 interface WorkflowStep {
   readonly name?: string;
+  readonly uses?: string;
+  readonly with?: Record<string, unknown>;
 }
 
 interface WorkflowJob {
@@ -52,6 +54,17 @@ test('PR CI targets main, uses a stable concurrency group and read-only default 
   assert.ok(ci.jobs.report);
   assert.deepEqual(ci.jobs.report.needs, ['quality', 'security', 'images']);
   assert.equal(ci.jobs.report.permissions?.actions, 'read');
+});
+
+test('pnpm is installed before setup-node configures the pnpm cache', async () => {
+  const ci = await workflow(ciPath);
+  const qualitySteps = ci.jobs.quality.steps;
+  const pnpmSetupIndex = qualitySteps.findIndex((step) => step.name === 'Set up pnpm');
+  const nodeSetupIndex = qualitySteps.findIndex((step) => step.name === 'Set up Node.js');
+
+  assert.ok(pnpmSetupIndex >= 0, 'the quality job must install pnpm');
+  assert.ok(nodeSetupIndex > pnpmSetupIndex, 'pnpm setup must precede setup-node');
+  assert.equal(qualitySteps[nodeSetupIndex]?.with?.cache, 'pnpm');
 });
 
 test('CI actions are pinned to full commit SHAs and PR workflows use no deployment secrets', async () => {
