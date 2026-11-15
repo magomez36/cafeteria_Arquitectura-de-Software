@@ -1,0 +1,3 @@
+import { describe, expect, it } from 'vitest';
+import type { Money, PriceQuote, ProductSummary } from '../src/index.js';
+describe('public contracts', () => { it('represents products and quotes in integer minor units', () => { const price: Money = { amountMinor: 425, currency: 'USD' }; const product: ProductSummary = { productId: 'coffee-1', name: 'Coffee', unitPrice: price, available: true }; const quote: PriceQuote = { productId: product.productId, quantity: 1, unitPrice: price, subtotal: price, discount: { amountMinor: 0, currency: 'USD' }, total: price, calculatedAt: new Date(0).toISOString() }; expect(Number.isInteger(quote.total.amountMinor)).toBe(true); }); });

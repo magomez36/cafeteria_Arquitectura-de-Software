@@ -1,0 +1,1 @@
+{"extends":"../../packages/tsconfig/base.json","compilerOptions":{"module":"CommonJS","moduleResolution":"Node","noEmit":true,"outDir":"./dist","strictPropertyInitialization":false},"include":["src/**/*.ts","test/**/*.ts"]}

@@ -1,11 +1,11 @@
 # Quickstart de validación: Plataforma de entrega
 
-Guía de aceptación para cuando se implemente el scaffolding. Los comandos marcados como **objetivo P0** describen la interfaz de scripts que deberá publicar el monorepo; todavía no son ejecutables en el repositorio vacío. Este artefacto no implementa la aplicación.
+Guía de aceptación de la plataforma local implementada en T001–T020. Los comandos siguientes se ejecutan desde la raíz del repositorio en `feature/spec-1`.
 
 ## Prerrequisitos
 
 - Git y Node.js LTS indicados por `.nvmrc`/`.node-version`.
-- Corepack o pnpm de la versión fijada en `package.json`.
+- pnpm 10.12.4 (`npm install --global pnpm@10.12.4` si Corepack no está disponible).
 - Docker Engine/Desktop con Compose.
 - Acceso al repositorio GitHub para crear una rama y una propuesta de cambio.
 - Para validar P2–P4: SonarQube, GitHub Actions/Environments, Vercel, Render, GHCR y Grafana con secretos de entorno configurados por responsables autorizados. No colocar valores en `.env.example` ni en Git.
@@ -13,14 +13,14 @@ Guía de aceptación para cuando se implemente el scaffolding. Los comandos marc
 ## P0: levantar la base local
 
 ```powershell
-corepack enable
+Copy-Item .env.example .env
 pnpm install --frozen-lockfile
 docker compose -f infra/compose.yaml up -d
 pnpm db:migrate
 pnpm dev
 ```
 
-**Resultado esperado:** `pnpm dev` inicia simultáneamente Next.js en `apps/web`, NestJS en `apps/api` y el worker en `apps/worker`; página Next local, `GET /health` sano y Postgres/Redis/RabbitMQ/Mailpit con healthchecks listos. `pnpm db:migrate` es idempotente en base vacía y ejecuta migraciones module-local ordenadas. El `README.md` raíz indica URLs/puertos y diagnóstico multiplataforma.
+**Resultado esperado:** `pnpm dev` inicia simultáneamente Next.js en `apps/web`, NestJS en `apps/api` y el worker en `apps/worker`; página Next en `http://localhost:3000`, `GET http://localhost:4000/health` devuelve `{"status":"ok"}` y Postgres (`localhost:55432`), Redis, RabbitMQ y Mailpit se mantienen con healthchecks listos. `pnpm db:migrate` usa el ledger `cafeteria_migrations` y ejecuta migraciones module-local ordenadas. El `README.md` raíz indica URLs/puertos y diagnóstico multiplataforma.
 
 ## P0/P1: validar scripts del monorepo
 
