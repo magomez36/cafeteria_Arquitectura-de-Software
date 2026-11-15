@@ -1,38 +1,69 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { mkdtemp, rm, appendFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+
+type Check = {
+  name: string;
+  status: 'queued' | 'in_progress' | 'success' | 'failure' | 'cancelled';
+  durationMs: number | null;
+};
+
+type CommitResult = {
+  sha: string;
+  affectedWorkspaces: string[];
+  status: 'queued' | 'in_progress' | 'success' | 'failure' | 'cancelled';
+  durationMs: number;
+  checks: Check[];
+};
+
+const workspacePaths = new Map([
+  ['apps/api/', '@cafeteria/api'],
+  ['apps/web/', '@cafeteria/web'],
+  ['apps/worker/', '@cafeteria/worker'],
+  ['packages/contracts/', '@cafeteria/contracts'],
+  ['packages/feature-flags/', '@cafeteria/feature-flags'],
+  ['packages/ui/', '@cafeteria/ui'],
+]);
+
+const allWorkspaces = [...workspacePaths.values()];
+const globalConfig =
+  /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|eslint\.config\.[^/]+|\.github\/workflows\/|scripts\/ci\/)/;
 
 function git(...args: string[]): string {
   return execFileSync('git', args, { encoding: 'utf8' }).trim();
 }
 
-function affectedWorkspace(commit: string): string[] {
-  const files = git('diff-tree', '--no-commit-id', '--name-only', '-r', commit)
-    .split(/\r?\n/)
-    .filter(Boolean);
-  const workspaces = new Set<string>();
+function affectedWorkspaces(files: string[]): string[] {
+  const affected = new Set<string>();
+  if (files.some((file) => globalConfig.test(file))) {
+    for (const workspace of allWorkspaces) affected.add(workspace);
+    return [...affected].sort();
+  }
   for (const file of files) {
-    if (file.startsWith('apps/api/')) workspaces.add('@cafeteria/api');
-    else if (file.startsWith('apps/web/')) workspaces.add('@cafeteria/web');
-    else if (file.startsWith('apps/worker/')) workspaces.add('@cafeteria/worker');
-    else if (file.startsWith('packages/contracts/')) workspaces.add('@cafeteria/contracts');
-    else if (file.startsWith('packages/ui/')) workspaces.add('@cafeteria/ui');
-    else if (
-      /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|packages\/tsconfig\/)/.test(
-        file,
-      )
-    ) {
-      for (const name of [
-        '@cafeteria/api',
-        '@cafeteria/web',
-        '@cafeteria/worker',
-        '@cafeteria/contracts',
-        '@cafeteria/ui',
-      ])
-        workspaces.add(name);
+    for (const [prefix, workspace] of workspacePaths) {
+      if (file.startsWith(prefix)) affected.add(workspace);
     }
   }
-  return [...workspaces].sort();
+  return [...affected].sort();
+}
+
+function run(command: string, args: string[], cwd: string): void {
+  const result = spawnSync(command, args, {
+    cwd,
+    stdio: 'inherit',
+    shell: process.platform === 'win32',
+  });
+  if (result.error) throw result.error;
+  if (result.signal) throw new Error(`${command} ${args.join(' ')} terminated by ${result.signal}`);
+  if (result.status !== 0)
+    throw new Error(`${command} ${args.join(' ')} exited with status ${String(result.status)}`);
+}
+
+function pnpmCommand(): string {
+  return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 }
 
 async function main(): Promise<void> {
@@ -45,49 +76,182 @@ async function main(): Promise<void> {
   }
   const commits = git('rev-list', '--reverse', `${base}..${head}`).split(/\r?\n/).filter(Boolean);
   if (!commits.length) throw new Error('The pull request commit range is empty.');
+  if (commits.length > 10)
+    throw new Error(
+      `The commit range contains ${commits.length} commits; the <15 minute validation target supports at most 10.`,
+    );
+
   const require = createRequire(import.meta.url);
   const commitlintCli = path.join(path.dirname(require.resolve('@commitlint/cli')), 'cli.js');
   const started = Date.now();
-  const report: Array<Record<string, unknown>> = [];
+  const results: CommitResult[] = [];
+
   for (const sha of commits) {
     const commitStarted = Date.now();
     const message = git('show', '-s', '--format=%B', sha);
-    try {
-      execFileSync(process.execPath, [commitlintCli], {
-        cwd: process.cwd(),
-        input: message,
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-    } catch (error) {
-      const stderr = error instanceof Error && 'stderr' in error ? String(error.stderr) : '';
-      throw new Error(`Conventional Commit check failed for ${sha}: ${stderr}`);
-    }
-    report.push({
+    const files = git('diff-tree', '--no-commit-id', '--name-only', '-r', sha)
+      .split(/\r?\n/)
+      .filter(Boolean);
+    const workspaces = affectedWorkspaces(files);
+    const result: CommitResult = {
       sha,
-      status: 'success',
-      job: 'commitlint',
-      durationMs: Date.now() - commitStarted,
-      affectedWorkspaces: affectedWorkspace(sha),
-    });
+      affectedWorkspaces: workspaces,
+      status: 'in_progress',
+      durationMs: 0,
+      checks: [{ name: 'commitlint', status: 'in_progress', durationMs: null }],
+    };
+    results.push(result);
+    process.stdout.write(`::group::Validate ${sha}\n`);
+
+    try {
+      const commitlintStarted = Date.now();
+      try {
+        execFileSync(process.execPath, [commitlintCli], {
+          cwd: process.cwd(),
+          input: message,
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+        result.checks[0] = {
+          name: 'commitlint',
+          status: 'success',
+          durationMs: Date.now() - commitlintStarted,
+        };
+      } catch (error) {
+        const stderr = error instanceof Error && 'stderr' in error ? String(error.stderr) : '';
+        result.checks[0] = {
+          name: 'commitlint',
+          status: 'failure',
+          durationMs: Date.now() - commitlintStarted,
+        };
+        throw new Error(`Conventional Commit check failed for ${sha}: ${stderr}`);
+      }
+
+      if (workspaces.length > 0) {
+        const worktree = await mkdtemp(path.join(os.tmpdir(), `cafeteria-${sha.slice(0, 7)}-`));
+        try {
+          run(
+            'git',
+            ['clone', '--quiet', '--shared', '--no-checkout', process.cwd(), worktree],
+            process.cwd(),
+          );
+          run('git', ['checkout', '--quiet', '--detach', sha], worktree);
+          const install = { name: 'install', status: 'in_progress' as const, durationMs: null };
+          result.checks.push(install);
+          const installStarted = Date.now();
+          run(pnpmCommand(), ['install', '--frozen-lockfile'], worktree);
+          install.status = 'success';
+          install.durationMs = Date.now() - installStarted;
+
+          if (!workspaces.every((workspace) => existsWorkspace(worktree, workspace))) {
+            throw new Error(`Affected workspace manifests are missing at ${sha}.`);
+          }
+
+          const workspaceCheck: Check = {
+            name: `lint/typecheck/test/build (${workspaces.join(', ')})`,
+            status: 'in_progress',
+            durationMs: null,
+          };
+          result.checks.push(workspaceCheck);
+          const checksStarted = Date.now();
+          run(
+            pnpmCommand(),
+            [
+              'exec',
+              'turbo',
+              'run',
+              'lint',
+              'typecheck',
+              'test',
+              'build',
+              ...workspaces.map((workspace) => `--filter=${workspace}`),
+            ],
+            worktree,
+          );
+          workspaceCheck.status = 'success';
+          workspaceCheck.durationMs = Date.now() - checksStarted;
+
+          for (const workspace of ['@cafeteria/api', '@cafeteria/worker']) {
+            if (!workspaces.includes(workspace)) continue;
+            const name = `${workspace} integration tests`;
+            const integration: Check = { name, status: 'in_progress', durationMs: null };
+            result.checks.push(integration);
+            const integrationStarted = Date.now();
+            run(pnpmCommand(), ['--filter', workspace, 'test:integration'], worktree);
+            integration.status = 'success';
+            integration.durationMs = Date.now() - integrationStarted;
+          }
+
+          if (
+            files.some(
+              (file) => file.startsWith('.github/workflows/') || file.startsWith('scripts/ci/'),
+            )
+          ) {
+            const policy: Check = {
+              name: 'CI policy tests',
+              status: 'in_progress',
+              durationMs: null,
+            };
+            result.checks.push(policy);
+            const policyStarted = Date.now();
+            run(pnpmCommand(), ['test:ci'], worktree);
+            policy.status = 'success';
+            policy.durationMs = Date.now() - policyStarted;
+          }
+        } catch (error) {
+          const check = result.checks.find((item) => item.status === 'in_progress');
+          if (check) {
+            check.status = 'failure';
+            check.durationMs ??= Date.now() - commitStarted;
+          }
+          result.status = 'failure';
+          process.stderr.write(
+            `::error::Commit ${sha} validation failed: ${error instanceof Error ? error.message : String(error)}\n`,
+          );
+        } finally {
+          await rm(worktree, { recursive: true, force: true });
+        }
+      }
+    } catch (error) {
+      result.status = 'failure';
+      process.stderr.write(`::error::${error instanceof Error ? error.message : String(error)}\n`);
+    }
+
+    if (result.status !== 'failure') result.status = 'success';
+    result.durationMs = Date.now() - commitStarted;
+    process.stdout.write(`${JSON.stringify(result, null, 2)}\n::endgroup::\n`);
   }
+
   const output = {
     base,
     head,
     commitCount: commits.length,
-    status: 'success',
+    status: results.some((item) => item.status === 'failure') ? 'failure' : 'success',
     durationMs: Date.now() - started,
-    commits: report,
+    commits: results,
   };
   const summaryPath = process.env.GITHUB_STEP_SUMMARY;
   if (summaryPath) {
-    const fs = await import('node:fs/promises');
-    await fs.appendFile(
+    const rows = results.map((item) => {
+      const checks = item.checks.map((check) => `${check.name}: ${check.status}`).join('<br>');
+      return `| ${item.sha.slice(0, 12)} | ${item.status} | ${item.durationMs} | ${checks} |`;
+    });
+    await appendFile(
       summaryPath,
-      `\n### Commit range validation\n\n\`\`\`json\n${JSON.stringify(output, null, 2)}\n\`\`\`\n`,
+      `\n### Commit-by-commit validation\n\n| Commit | Result | Duration (ms) | Checks |\n|---|---|---:|---|\n${rows.join('\n')}\n\nTotal: ${output.durationMs} ms; target <15 min for up to 10 commits.\n`,
     );
   }
   process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
+  if (output.status === 'failure') process.exitCode = 1;
+  if (output.durationMs >= 15 * 60 * 1000) {
+    process.stderr.write('::error::The commit range exceeded the 15 minute target.\n');
+    process.exitCode = 1;
+  }
+}
+
+function existsWorkspace(root: string, name: string): boolean {
+  const relative = [...workspacePaths.entries()].find(([, workspace]) => workspace === name)?.[0];
+  return relative !== undefined && existsSync(path.join(root, relative, 'package.json'));
 }
 
 void main().catch((error: unknown) => {
