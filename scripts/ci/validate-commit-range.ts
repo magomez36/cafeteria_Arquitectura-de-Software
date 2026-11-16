@@ -4,7 +4,9 @@ import { mkdtemp, rm, appendFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { isPostgresStartupTransientFailure } from './postgres-startup-retry.js';
+import { gitExecutable } from './git-executable.js';
 
 type Check = {
   name: string;
@@ -35,21 +37,21 @@ const globalConfig =
 const policyFiles = /^(\.github\/workflows\/|scripts\/(ci|deploy|telemetry)\/)/;
 
 function git(...args: string[]): string {
-  return execFileSync('git', args, { encoding: 'utf8' }).trim();
+  return execFileSync(gitExecutable(), args, { encoding: 'utf8' }).trim();
 }
 
-function affectedWorkspaces(files: string[]): string[] {
+export function affectedWorkspaces(files: string[]): string[] {
   const affected = new Set<string>();
   if (files.some((file) => globalConfig.test(file))) {
     for (const workspace of allWorkspaces) affected.add(workspace);
-    return [...affected].sort();
+    return [...affected].sort((left, right) => left.localeCompare(right));
   }
   for (const file of files) {
     for (const [prefix, workspace] of workspacePaths) {
       if (file.startsWith(prefix)) affected.add(workspace);
     }
   }
-  return [...affected].sort();
+  return [...affected].sort((left, right) => left.localeCompare(right));
 }
 
 function run(
@@ -74,7 +76,7 @@ function pnpmCommand(): string {
   return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const base = process.env.BASE_SHA;
   const head = process.env.HEAD_SHA;
   if (!base || !head || !/^[0-9a-f]{40}$/i.test(base) || !/^[0-9a-f]{40}$/i.test(head)) {
@@ -292,8 +294,10 @@ function existsWorkspace(root: string, name: string): boolean {
   return relative !== undefined && existsSync(path.join(root, relative, 'package.json'));
 }
 
-void main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`::error::${message}\n`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  void main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`::error::${message}\n`);
+    process.exitCode = 1;
+  });
+}

@@ -37,7 +37,7 @@ export function validateStagingTargets(environment = process.env) {
   };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+export function main() {
   try {
     validateStagingTargets();
   } catch (error) {
@@ -45,3 +45,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exitCode = 1;
   }
 }
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main();

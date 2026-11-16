@@ -5,10 +5,7 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
-permissions:
-  contents: read
-  checks: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -19,6 +16,10 @@ jobs:
     name: quality
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: read
+      pull-requests: read
     outputs:
       api_changed: ${{ steps.affected.outputs.api }}
       worker_changed: ${{ steps.affected.outputs.worker }}
@@ -56,7 +57,7 @@ jobs:
         if: steps.affected.outputs.has_code == 'true'
         run: pnpm exec turbo run typecheck --filter="...[${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}]"
       - name: Unit and policy tests
-        run: pnpm test:ci
+        run: pnpm test:ci:coverage
       - name: Unit tests for affected workspaces
         if: steps.affected.outputs.has_code == 'true'
         run: pnpm exec turbo run test --filter="...[${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}]"

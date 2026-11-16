@@ -36,7 +36,7 @@ interface Workflow {
     readonly pull_request_target?: unknown;
     readonly workflow_call?: unknown;
   };
-  readonly permissions: Record<string, string>;
+  readonly permissions?: Record<string, string>;
   readonly concurrency: {
     readonly group: string;
     readonly 'cancel-in-progress': boolean;
@@ -52,10 +52,15 @@ test('PR CI targets main, uses a stable concurrency group and read-only default 
   const ci = await workflow(ciPath);
   assert.deepEqual(ci.on.pull_request?.branches, ['main']);
   assert.equal(ci.on.pull_request_target, undefined);
-  assert.equal(ci.permissions.contents, 'read');
+  assert.deepEqual(ci.permissions, {});
   assert.ok(ci.concurrency.group);
   assert.equal(ci.concurrency['cancel-in-progress'], true);
   assert.ok(ci.jobs.quality);
+  assert.deepEqual(ci.jobs.quality.permissions, {
+    contents: 'read',
+    checks: 'read',
+    'pull-requests': 'read',
+  });
   assert.ok(ci.jobs.security);
   assert.ok(ci.jobs.images);
   assert.deepEqual(ci.jobs.images.needs, ['quality', 'security']);
@@ -66,6 +71,7 @@ test('PR CI targets main, uses a stable concurrency group and read-only default 
   assert.ok(ci.jobs.report);
   assert.deepEqual(ci.jobs.report.needs, ['quality', 'security', 'images']);
   assert.equal(ci.jobs.report.permissions?.actions, 'read');
+  assert.deepEqual(ci.jobs.images.permissions, { contents: 'read' });
 });
 
 test('pnpm is installed before setup-node configures the pnpm cache', async () => {
@@ -113,7 +119,7 @@ test('code changes generate workspace LCOV and require a blocking SonarQube gate
   assert.match(workflowSource, /SONAR_ORGANIZATION:\s*\$\{\{ vars\.SONAR_ORGANIZATION \}\}/);
   assert.match(workflowSource, /test -n "\$SONAR_TOKEN".*exit 1/s);
   assert.match(sonarProperties, /sonar\.qualitygate\.wait=true/);
-  assert.equal((sonarProperties.match(/coverage\/lcov\.info/g) ?? []).length, 6);
+  assert.equal((sonarProperties.match(/lcov\.info/g) ?? []).length, 7);
 });
 
 test('CI actions are pinned, base PR CI has no deployment secrets, and preview is gated', async () => {
@@ -140,6 +146,12 @@ test('CI actions are pinned, base PR CI has no deployment secrets, and preview i
   }
   const preview = await workflow(previewPath);
   assert.deepEqual(preview.jobs['deploy-preview']?.needs, ['require-ci']);
+  assert.deepEqual(preview.permissions, {});
+  assert.deepEqual(preview.jobs['require-ci']?.permissions, {
+    contents: 'read',
+    checks: 'read',
+    'pull-requests': 'read',
+  });
   const previewSource = await readFile(previewPath, 'utf8');
   assert.match(previewSource, /head\.repo\.full_name == github\.repository/);
   assert.match(previewSource, /ref: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);

@@ -1,15 +1,10 @@
 import { execFileSync } from 'node:child_process';
 import { appendFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { gitExecutable } from './git-executable.js';
 
-async function main(): Promise<void> {
-  const base = process.env.BASE_SHA;
-  const head = process.env.HEAD_SHA;
-  if (!base || !head) throw new Error('BASE_SHA and HEAD_SHA are required.');
-  const files = execFileSync('git', ['diff', '--name-only', `${base}...${head}`], {
-    encoding: 'utf8',
-  })
-    .split(/\r?\n/)
-    .filter(Boolean);
+export function classifyAffectedFiles(files: string[]) {
   const codePatterns = [
     /^apps\//,
     /^packages\//,
@@ -28,6 +23,19 @@ async function main(): Promise<void> {
   const workerChanged =
     repoWide ||
     files.some((file) => /^(apps\/worker\/|packages\/tsconfig\/|\.dockerignore$)/.test(file));
+  return { hasCode, apiChanged, workerChanged };
+}
+
+export async function main(): Promise<void> {
+  const base = process.env.BASE_SHA;
+  const head = process.env.HEAD_SHA;
+  if (!base || !head) throw new Error('BASE_SHA and HEAD_SHA are required.');
+  const files = execFileSync(gitExecutable(), ['diff', '--name-only', `${base}...${head}`], {
+    encoding: 'utf8',
+  })
+    .split(/\r?\n/)
+    .filter(Boolean);
+  const { hasCode, apiChanged, workerChanged } = classifyAffectedFiles(files);
   process.stdout.write(`Affected paths: ${files.length}; executable checks: ${hasCode}\n`);
   if (process.env.GITHUB_OUTPUT) {
     await appendFile(
@@ -37,8 +45,10 @@ async function main(): Promise<void> {
   }
 }
 
-void main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`::error::${message}\n`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  void main().catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`::error::${message}\n`);
+    process.exitCode = 1;
+  });
+}

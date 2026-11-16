@@ -18,6 +18,11 @@ test('telemetry workflow reads trusted default-branch runs with read-only permis
   ]);
   assert.equal(workflow.permissions.contents, 'read');
   assert.equal(workflow.permissions.actions, 'read');
+  assert.match(
+    workflow.jobs.collect.if,
+    /workflow_run\.head_repository\.full_name == github\.repository/,
+    'workflow_run events from forks must not enter the telemetry job',
+  );
   assert.equal(workflow.jobs.collect.steps.at(-1).with['retention-days'], 30);
   const publishStep = workflow.jobs.collect.steps.find(
     (step: { name?: string }) =>

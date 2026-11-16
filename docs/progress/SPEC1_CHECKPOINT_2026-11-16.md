@@ -255,3 +255,45 @@ npm exec --yes --package=node@24 --package=pnpm@10.12.4 -- pnpm build
 - Docker Desktop está instalado (`docker.exe` disponible), pero el daemon local no responde: no existe `//./pipe/docker_engine`; además, el acceso al archivo de configuración Docker del perfil está denegado. Integraciones Testcontainers locales permanecen bloqueadas hasta que Docker Desktop arranque.
 - HEAD local antes de preparar el push: `437b02df447d0a4611b9cea601a69750c27cceb9`; `origin/feature/spec-1` sigue en `53aadfa5707a0dd799629d5f77755ee5d0ea7060`. Un commit local está pendiente de publicación. Cambios docs/tareas/checkpoint también locales; no agregar `docs/progress/recovery-2026-11-16/`.
 - Procedimiento de esta reanudación: validar únicamente los cambios locales pendientes, preparar commit documental atómico sin respaldos ni secretos, publicar a `feature/spec-1`, consultar la ejecución nueva de Actions y confirmar que el escaneo Sonar importa los seis LCOV y devuelve un Quality Gate calculado. No declarar aprobado `Not computed` ni el último run previo `43812334596`.
+
+## 15. Corrección de Sonar y reportes LCOV — 2026-11-16
+
+### Estado de Git al retomar
+
+- Rama `feature/spec-1`; HEAD local y remoto `bd01bd9b502923b91164bb29972121c670eb590c`.
+- Los commits `437b02d` y `bd01bd9` ya están publicados en `origin/feature/spec-1`; no hay commits locales nuevos.
+- Los cambios de esta etapa siguen sin commit. La carpeta `docs/progress/recovery-2026-11-16/` continúa sin seguimiento y debe permanecer fuera de staging.
+- No se cambió la especificación de otro integrante, no se hizo merge, despliegue ni cambio en `main`.
+
+### Resultado remoto que motivó los cambios
+
+- PR #1 continúa en Draft. Run real `43917776461`, SHA `bd01bd9`: el paso de Sonar analizó el código y calculó un Quality Gate **FAILED**, no `not-computed`.
+- Métricas del análisis: cobertura nueva 23,0%, security rating C, reliability rating D; mantenibilidad, duplicación (0,6%) y revisión de hotspots (100%) pasaron. Sonar reportó 7 vulnerabilidades y 2 bugs.
+- CodeQL, dependency-audit, secret-scan, build/scan de imágenes y Trivy pasaron. `pr-report` falló correctamente porque `quality` falló. El workflow de Preview se omitió porque el PR era Draft.
+- El propietario confirmó que configuró `SONAR_TOKEN`, `SONAR_PROJECT_KEY` y `SONAR_ORGANIZATION`; no se leyeron ni copiaron sus valores.
+
+### Correcciones locales sin publicar
+
+- Se corrigió el ordenamiento por defecto con comparadores deterministas en el validador de commits.
+- Se trasladaron los permisos de `ci.yml` y `deploy-preview.yml` al nivel de cada job, manteniendo permisos mínimos; se añadieron pruebas de política.
+- El job de telemetría `workflow_run` ahora se omite para ejecuciones cuyo repositorio de origen no coincide con el repositorio confiable; hay prueba de política.
+- Las utilidades CI resuelven Git desde ubicaciones fijas soportadas en Windows/Linux, sin depender de `PATH` para localizar el ejecutable. Se añadieron pruebas.
+- Se agregó `c8` y el comando `pnpm test:ci:coverage`; `sonar-project.properties` importa un séptimo reporte `coverage/scripts/lcov.info` y reconoce specs `.mjs`.
+- Se añadieron pruebas para la validación de rangos reales, detección de rutas afectadas, reportes GitHub, comprobaciones requeridas, migraciones, telemetría, targets staging y límites entre módulos.
+- Documentos actualizados: `docs/ci/sonarqube-monorepo.md`, `docs/ci/acceptance.md`, `specs/001-plataforma-entrega/tasks.md` y este checkpoint. El resto de los archivos locales se observa con `git status --short`.
+
+### Validaciones locales posteriores
+
+- `pnpm test:ci:coverage`: 60/60 pruebas pasaron; salida de líneas de los scripts instrumentados 79,42%.
+- `pnpm coverage`: pasó para los seis workspaces; API 100%, worker 96,67%, web 100%, contratos 88,89%, feature flags 100%, UI 100%.
+- Reportes LCOV combinados localmente: 913/1129 líneas cubiertas (80,87%). Esta suma local no reemplaza la cobertura de código nuevo que calcula Sonar.
+- `pnpm lint`, ESLint dirigido a scripts, `pnpm typecheck` y `pnpm build` pasaron. Next.js conserva el aviso conocido de plugin ESLint no detectado.
+- Docker Desktop estaba instalado, pero el daemon local no respondía al último chequeo; las integraciones Testcontainers locales siguen dependiendo de iniciar Docker. En el run remoto previo las integraciones pasaron.
+- `git diff --check` pasó antes de los últimos cambios documentales; debe repetirse antes de commit.
+
+### Estado de tareas y continuación
+
+- T030 sigue completa por la generación/configuración local de seis reportes de workspace más el reporte LCOV de scripts. T031 sigue parcial: hace falta una nueva ejecución real que importe los siete reportes, calcule un gate aprobado y publique el check para el SHA actualizado.
+- T033 sigue parcial: falta verificar reglas efectivas de protección de `main`. Los escenarios negativos remotos de T034 siguen pendientes.
+- El total global de tareas no se recalculó en este bloque; no se marcaron como completas tareas que dependan de GitHub, Sonar, Docker o servicios externos.
+- Próximo paso: revisar `git diff` y `git diff --check`, ejecutar `pnpm test:ci:coverage` y Prettier check sobre archivos modificados, crear commits atómicos sin `docs/progress/recovery-2026-11-16/`, hacer push normal a `feature/spec-1` y consultar el nuevo run. Mantener PR #1 en Draft hasta que el análisis de Sonar y todos los checks obligatorios pasen.

@@ -32,7 +32,7 @@ export function normalizeJob(job, now = Date.now()) {
   };
 }
 
-async function main() {
+export async function main() {
   const token = process.env.GITHUB_TOKEN;
   const repository = process.env.GITHUB_REPOSITORY;
   const runId = process.env.GITHUB_RUN_ID;

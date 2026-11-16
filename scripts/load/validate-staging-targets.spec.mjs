@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { validateStagingTarget, validateStagingTargets } from './validate-staging-targets.mjs';
+import {
+  main,
+  validateStagingTarget,
+  validateStagingTargets,
+} from './validate-staging-targets.mjs';
 
 test('accepts HTTPS URLs for non-production staging hosts', () => {
   const targets = validateStagingTargets({
@@ -41,4 +45,23 @@ test('rejects HTTPS hosts that are not explicitly identified as staging or previ
     () => validateStagingTarget('https://api.example.net', 'STAGING_API_URL'),
     /must include a staging or preview hostname label/,
   );
+});
+
+test('command entry point fails closed when staging URLs are not configured', () => {
+  const previousWeb = process.env.STAGING_BASE_URL;
+  const previousApi = process.env.STAGING_API_URL;
+  const previousExitCode = process.exitCode;
+  delete process.env.STAGING_BASE_URL;
+  delete process.env.STAGING_API_URL;
+  process.exitCode = 0;
+  try {
+    main();
+    assert.equal(process.exitCode, 1);
+  } finally {
+    if (previousWeb === undefined) delete process.env.STAGING_BASE_URL;
+    else process.env.STAGING_BASE_URL = previousWeb;
+    if (previousApi === undefined) delete process.env.STAGING_API_URL;
+    else process.env.STAGING_API_URL = previousApi;
+    process.exitCode = previousExitCode;
+  }
 });

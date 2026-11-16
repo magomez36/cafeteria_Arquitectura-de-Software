@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -16,6 +16,7 @@ import {
   RetryingMetricExporter,
   workflowRunMetric,
   workflowRunRecord,
+  main,
 } from './publish.js';
 
 test('emits sourced, team-level duration telemetry for an immutable workflow run', () => {
@@ -242,4 +243,82 @@ test('does not hide a failed metric batch when a later batch succeeds', async ()
   assert.equal(attempts, 4);
   assert.deepEqual(results, [ExportResultCode.FAILED, ExportResultCode.SUCCESS]);
   assert.match(exporter.lastFailure?.message ?? '', /first metric was rejected/);
+});
+
+test('reads a workflow event, persists telemetry, and tolerates an unconfigured exporter', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'cafeteria-telemetry-main-'));
+  const eventPath = path.join(directory, 'event.json');
+  const outputPath = path.join(directory, 'telemetry.jsonl');
+  const summaryPath = path.join(directory, 'summary.md');
+  const previous = {
+    event: process.env.GITHUB_EVENT_PATH,
+    output: process.env.GITHUB_OUTPUT_FILE,
+    summary: process.env.GITHUB_STEP_SUMMARY,
+    endpoint: process.env.GRAFANA_OTLP_METRICS_ENDPOINT,
+    authorization: process.env.GRAFANA_OTLP_AUTHORIZATION,
+  };
+  await writeFile(
+    eventPath,
+    JSON.stringify({
+      workflow_run: {
+        id: 48,
+        name: 'Pull request CI',
+        head_sha: '1'.repeat(40),
+        head_branch: 'feature/spec-1',
+        conclusion: 'success',
+        run_started_at: '2026-11-15T10:00:00.000Z',
+        updated_at: '2026-11-15T10:00:30.000Z',
+      },
+    }),
+    'utf8',
+  );
+  process.env.GITHUB_EVENT_PATH = eventPath;
+  process.env.GITHUB_OUTPUT_FILE = outputPath;
+  process.env.GITHUB_STEP_SUMMARY = summaryPath;
+  delete process.env.GRAFANA_OTLP_METRICS_ENDPOINT;
+  delete process.env.GRAFANA_OTLP_AUTHORIZATION;
+  try {
+    await main();
+    const record = JSON.parse(await readFile(outputPath, 'utf8')) as {
+      workflowRunId: number;
+      sha: string;
+      result: string;
+    };
+    assert.equal(record.workflowRunId, 48);
+    assert.equal(record.sha, '1'.repeat(40));
+    assert.equal(record.result, 'success');
+    assert.match(await readFile(summaryPath, 'utf8'), /reported success in 30 seconds/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+    if (previous.event === undefined) delete process.env.GITHUB_EVENT_PATH;
+    else process.env.GITHUB_EVENT_PATH = previous.event;
+    if (previous.output === undefined) delete process.env.GITHUB_OUTPUT_FILE;
+    else process.env.GITHUB_OUTPUT_FILE = previous.output;
+    if (previous.summary === undefined) delete process.env.GITHUB_STEP_SUMMARY;
+    else process.env.GITHUB_STEP_SUMMARY = previous.summary;
+    if (previous.endpoint === undefined) delete process.env.GRAFANA_OTLP_METRICS_ENDPOINT;
+    else process.env.GRAFANA_OTLP_METRICS_ENDPOINT = previous.endpoint;
+    if (previous.authorization === undefined) delete process.env.GRAFANA_OTLP_AUTHORIZATION;
+    else process.env.GRAFANA_OTLP_AUTHORIZATION = previous.authorization;
+  }
+});
+
+test('rejects a missing workflow event and invalid run identity', async () => {
+  const previous = process.env.GITHUB_EVENT_PATH;
+  try {
+    delete process.env.GITHUB_EVENT_PATH;
+    await assert.rejects(main(), /GITHUB_EVENT_PATH is required/);
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'cafeteria-telemetry-invalid-'));
+    const eventPath = path.join(directory, 'event.json');
+    try {
+      await writeFile(eventPath, JSON.stringify({ workflow_run: { id: 0, head_sha: 'latest' } }));
+      process.env.GITHUB_EVENT_PATH = eventPath;
+      await assert.rejects(main(), /workflow run id and immutable commit SHA/);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  } finally {
+    if (previous === undefined) delete process.env.GITHUB_EVENT_PATH;
+    else process.env.GITHUB_EVENT_PATH = previous;
+  }
 });

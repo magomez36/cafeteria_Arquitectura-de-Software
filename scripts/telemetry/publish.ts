@@ -239,7 +239,7 @@ function createGrafanaExporter(endpoint?: string, authorization?: string): PushM
   return new OTLPMetricExporter({ url: url.toString(), headers: { Authorization: authorization } });
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const inputPath = process.env.GITHUB_EVENT_PATH;
   const outputPath = process.env.GITHUB_OUTPUT_FILE ?? 'telemetry.jsonl';
   if (!inputPath) throw new Error('GITHUB_EVENT_PATH is required.');

@@ -5,10 +5,7 @@ on:
     branches: [main]
     types: [opened, synchronize, reopened, ready_for_review]
 
-permissions:
-  contents: read
-  checks: read
-  pull-requests: read
+permissions: {}
 
 concurrency:
   group: preview-${{ github.event.pull_request.number }}
@@ -22,6 +19,10 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
+      checks: read
+      pull-requests: read
     steps:
       - name: Checkout preview workflow source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
