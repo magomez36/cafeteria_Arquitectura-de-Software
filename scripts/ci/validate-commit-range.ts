@@ -31,6 +31,7 @@ const workspacePaths = new Map([
 const allWorkspaces = [...workspacePaths.values()];
 const globalConfig =
   /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|eslint\.config\.[^/]+|\.github\/workflows\/|scripts\/ci\/)/;
+const policyFiles = /^(\.github\/workflows\/|scripts\/(ci|deploy|telemetry)\/)/;
 
 function git(...args: string[]): string {
   return execFileSync('git', args, { encoding: 'utf8' }).trim();
@@ -50,9 +51,15 @@ function affectedWorkspaces(files: string[]): string[] {
   return [...affected].sort();
 }
 
-function run(command: string, args: string[], cwd: string): void {
+function run(
+  command: string,
+  args: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
   const result = spawnSync(command, args, {
     cwd,
+    env,
     stdio: 'inherit',
     shell: process.platform === 'win32',
   });
@@ -182,11 +189,7 @@ async function main(): Promise<void> {
             integration.durationMs = Date.now() - integrationStarted;
           }
 
-          if (
-            files.some(
-              (file) => file.startsWith('.github/workflows/') || file.startsWith('scripts/ci/'),
-            )
-          ) {
+          if (files.some((file) => policyFiles.test(file))) {
             const policy: Check = {
               name: 'CI policy tests',
               status: 'in_progress',
@@ -194,7 +197,9 @@ async function main(): Promise<void> {
             };
             result.checks.push(policy);
             const policyStarted = Date.now();
-            run(pnpmCommand(), ['test:ci'], worktree);
+            const testEnvironment = { ...process.env };
+            delete testEnvironment.GITHUB_EVENT_PATH;
+            run(pnpmCommand(), ['test:ci'], worktree, testEnvironment);
             policy.status = 'success';
             policy.durationMs = Date.now() - policyStarted;
           }

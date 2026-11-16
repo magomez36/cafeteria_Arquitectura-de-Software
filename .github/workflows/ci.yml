@@ -147,6 +147,38 @@ jobs:
           ignore-unfixed: false
           vuln-type: os,library
           severity: HIGH,CRITICAL
+      - name: Save scanned images for immutable promotion
+        if: needs.quality.outputs.api_changed == 'true' || needs.quality.outputs.worker_changed == 'true'
+        shell: bash
+        env:
+          API_CHANGED: ${{ needs.quality.outputs.api_changed }}
+          WORKER_CHANGED: ${{ needs.quality.outputs.worker_changed }}
+          IMAGE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          images=()
+          [[ "$API_CHANGED" == "true" ]] && images+=("cafeteria-api:$IMAGE_SHA")
+          [[ "$WORKER_CHANGED" == "true" ]] && images+=("cafeteria-worker:$IMAGE_SHA")
+          docker save --output verified-images.tar "${images[@]}"
+      - name: Record verified artifact manifest
+        shell: bash
+        env:
+          API_CHANGED: ${{ needs.quality.outputs.api_changed }}
+          WORKER_CHANGED: ${{ needs.quality.outputs.worker_changed }}
+          IMAGE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          images=()
+          [[ "$API_CHANGED" == "true" ]] && images+=("api")
+          [[ "$WORKER_CHANGED" == "true" ]] && images+=("worker")
+          jq -n --arg sha "$IMAGE_SHA" --argjson images "$(printf '%s\n' "${images[@]}" | jq -R . | jq -s .)" '{sourceSha:$sha,images:$images}' > image-manifest.json
+      - name: Retain scanned image archive for post-merge promotion
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verified-images-${{ github.event.pull_request.head.sha }}
+          path: |
+            image-manifest.json
+            verified-images.tar
+          if-no-files-found: error
+          retention-days: 30
 
   report:
     name: pr-report

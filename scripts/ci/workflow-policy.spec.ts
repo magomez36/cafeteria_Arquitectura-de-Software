@@ -13,6 +13,7 @@ const publishPath = path.join(root, '.github/workflows/publish-images.yml');
 const releasePleasePath = path.join(root, '.github/workflows/release-please.yml');
 const telemetryPath = path.join(root, '.github/workflows/telemetry.yml');
 const loadStagingPath = path.join(root, '.github/workflows/load-staging.yml');
+const commitRangePath = path.join(root, 'scripts/ci/validate-commit-range.ts');
 
 interface WorkflowStep {
   readonly name?: string;
@@ -30,7 +31,7 @@ interface WorkflowJob {
 interface Workflow {
   readonly on: {
     readonly push?: { readonly branches?: string[] };
-    readonly pull_request?: { readonly branches?: string[] };
+    readonly pull_request?: { readonly branches?: string[]; readonly types?: string[] };
     readonly pull_request_target?: unknown;
     readonly workflow_call?: unknown;
   };
@@ -74,6 +75,12 @@ test('pnpm is installed before setup-node configures the pnpm cache', async () =
   assert.equal(qualitySteps[nodeSetupIndex]?.with?.cache, 'pnpm');
 });
 
+test('commit-range policy tests do not inherit GitHub runtime event payloads', async () => {
+  const commitRange = await readFile(commitRangePath, 'utf8');
+  assert.match(commitRange, /delete testEnvironment\.GITHUB_EVENT_PATH/);
+  assert.ok(commitRange.includes('scripts\\/(ci|deploy|telemetry)\\/'));
+});
+
 test('code changes generate workspace LCOV and require a blocking SonarQube gate', async () => {
   const ci = await workflow(ciPath);
   const qualitySteps = ci.jobs.quality.steps;
@@ -115,7 +122,8 @@ test('CI actions are pinned, base PR CI has no deployment secrets, and preview i
   ]) {
     const source = await readFile(file, 'utf8');
     const actionReferences = [...source.matchAll(/^[ \t]*(?:-[ \t]*)?uses:[ \t]*([^ \t\r\n#]+)/gm)];
-    assert.ok(actionReferences.length > 0, `${file} must contain pinned actions`);
+    if (file !== publishPath)
+      assert.ok(actionReferences.length > 0, `${file} must contain pinned actions`);
     for (const match of actionReferences) {
       const reference = match[1];
       if (reference.startsWith('./')) continue;
@@ -148,35 +156,45 @@ test('CI actions are pinned, base PR CI has no deployment secrets, and preview i
   );
 });
 
-test('GHCR publication is restricted to main and scans each image before token-based push', async () => {
+test('GHCR publishes only merged PR images previously built and scanned by CI', async () => {
   const publish = await workflow(publishPath);
-  assert.deepEqual(publish.on.push?.branches, ['main']);
+  assert.deepEqual(publish.on.pull_request?.branches, ['main']);
+  assert.deepEqual(publish.on.pull_request?.types, ['closed']);
+  assert.match(await readFile(publishPath, 'utf8'), /pull_request\.merged == true/);
   assert.equal(publish.permissions.contents, 'read');
+  assert.equal(publish.jobs.publish?.permissions?.actions, 'read');
   assert.equal(publish.jobs.publish?.permissions?.packages, 'write');
   assert.equal(publish.jobs.publish?.permissions?.contents, 'read');
+  assert.equal(publish.jobs.publish?.permissions?.['pull-requests'], 'read');
 
   const steps = publish.jobs.publish.steps.map((step) => step.name ?? '');
   assert.ok(
-    steps.indexOf('Build API image for this immutable commit') <
-      steps.indexOf('Scan API image before registry publication'),
+    steps.indexOf('Locate successful PR CI run for the exact source SHA') <
+      steps.indexOf('Download images built and scanned by PR CI'),
   );
   assert.ok(
-    steps.indexOf('Scan API image before registry publication') <
-      steps.indexOf('Build worker image for this immutable commit'),
+    steps.indexOf('Download images built and scanned by PR CI') <
+      steps.indexOf('Validate source manifest and detect images to promote'),
   );
   assert.ok(
-    steps.indexOf('Build worker image for this immutable commit') <
-      steps.indexOf('Scan worker image before registry publication'),
+    steps.indexOf('Validate source manifest and detect images to promote') <
+      steps.indexOf('Load the scanned image archive'),
   );
   assert.ok(
-    steps.indexOf('Scan worker image before registry publication') <
+    steps.indexOf('Load the scanned image archive') <
       steps.indexOf('Authenticate to GHCR with the job-scoped token'),
   );
   assert.ok(
     steps.indexOf('Authenticate to GHCR with the job-scoped token') <
-      steps.indexOf('Push scanned API and worker images'),
+      steps.indexOf('Push verified images and record immutable digests'),
   );
-  assert.match(await readFile(publishPath, 'utf8'), /cancel-in-progress: false/);
+  const publishSource = await readFile(publishPath, 'utf8');
+  assert.match(publishSource, /--commit "\$SOURCE_SHA"/);
+  assert.match(publishSource, /verified-images-\$SOURCE_SHA/);
+  assert.match(publishSource, /\.sourceSha == \$sha/);
+  assert.match(publishSource, /image-digests\.txt/);
+  assert.doesNotMatch(publishSource, /docker build/);
+  assert.match(publishSource, /cancel-in-progress: false/);
 });
 
 test('security scanning is part of the required PR workflow and image scans follow image builds', async () => {
@@ -194,6 +212,22 @@ test('security scanning is part of the required PR workflow and image scans foll
   assert.ok(
     imageSteps.indexOf('Build worker image') <
       imageSteps.indexOf('Scan worker image for high and critical vulnerabilities'),
+  );
+  assert.ok(
+    imageSteps.indexOf('Scan API image for high and critical vulnerabilities') <
+      imageSteps.indexOf('Save scanned images for immutable promotion'),
+  );
+  assert.ok(
+    imageSteps.indexOf('Scan worker image for high and critical vulnerabilities') <
+      imageSteps.indexOf('Save scanned images for immutable promotion'),
+  );
+  assert.ok(
+    imageSteps.indexOf('Save scanned images for immutable promotion') <
+      imageSteps.indexOf('Record verified artifact manifest'),
+  );
+  assert.ok(
+    imageSteps.indexOf('Record verified artifact manifest') <
+      imageSteps.indexOf('Retain scanned image archive for post-merge promotion'),
   );
   assert.match(await readFile(ciPath, 'utf8'), /severity: HIGH,CRITICAL/);
   assert.match(await readFile(ciPath, 'utf8'), /exit-code: '1'/);

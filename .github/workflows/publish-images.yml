@@ -1,8 +1,9 @@
 name: Publish verified images
 
 on:
-  push:
+  pull_request:
     branches: [main]
+    types: [closed]
 
 permissions:
   contents: read
@@ -14,50 +15,59 @@ concurrency:
 jobs:
   publish:
     name: publish-ghcr
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     permissions:
+      actions: read
       contents: read
       packages: write
+      pull-requests: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
-      - name: Checkout merged source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Normalize GHCR namespace
-        id: images
-        shell: bash
-        run: echo "prefix=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
-      - name: Build API image for this immutable commit
-        run: docker build --pull --tag "${{ steps.images.outputs.prefix }}/api:${GITHUB_SHA}" --file apps/api/Dockerfile .
-      - name: Scan API image before registry publication
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ steps.images.outputs.prefix }}/api:${{ github.sha }}
-          format: table
-          exit-code: '1'
-          ignore-unfixed: false
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
-      - name: Build worker image for this immutable commit
-        run: docker build --pull --tag "${{ steps.images.outputs.prefix }}/worker:${GITHUB_SHA}" --file apps/worker/Dockerfile .
-      - name: Scan worker image before registry publication
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: ${{ steps.images.outputs.prefix }}/worker:${{ github.sha }}
-          format: table
-          exit-code: '1'
-          ignore-unfixed: false
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
-      - name: Authenticate to GHCR with the job-scoped token
-        env:
-          GHCR_TOKEN: ${{ github.token }}
-        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-      - name: Push scanned API and worker images
-        id: push
+      - name: Locate successful PR CI run for the exact source SHA
+        id: run
         shell: bash
         run: |
-          docker push "${{ steps.images.outputs.prefix }}/api:${GITHUB_SHA}"
-          api_digest=$(docker inspect --format='{{index .RepoDigests 0}}' "${{ steps.images.outputs.prefix }}/api:${GITHUB_SHA}")
-          docker push "${{ steps.images.outputs.prefix }}/worker:${GITHUB_SHA}"
-          worker_digest=$(docker inspect --format='{{index .RepoDigests 0}}' "${{ steps.images.outputs.prefix }}/worker:${GITHUB_SHA}")
-          printf 'API artifact: `%s`\nWorker artifact: `%s`\nSource SHA: `%s`\n' "$api_digest" "$worker_digest" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow "Pull request CI" --commit "$SOURCE_SHA" --event pull_request --status success --limit 20 --json databaseId --jq '.[0].databaseId')
+          test -n "$run_id" && test "$run_id" != "null" || { echo '::error::No successful Pull request CI run exists for the merged source SHA.'; exit 1; }
+          echo "id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Download images built and scanned by PR CI
+        run: gh run download "${{ steps.run.outputs.id }}" --repo "$GITHUB_REPOSITORY" --name "verified-images-$SOURCE_SHA" --dir verified-images
+      - name: Validate source manifest and detect images to promote
+        id: manifest
+        shell: bash
+        run: |
+          jq -e --arg sha "$SOURCE_SHA" '.sourceSha == $sha and (.images | all(. == "api" or . == "worker"))' verified-images/image-manifest.json >/dev/null
+          has_images=$(jq -r '(.images | length) > 0' verified-images/image-manifest.json)
+          echo "has_images=$has_images" >> "$GITHUB_OUTPUT"
+          if [[ "$has_images" != "true" ]]; then
+            echo 'No API or worker image changed; publication is not required.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Load the scanned image archive
+        if: steps.manifest.outputs.has_images == 'true'
+        run: docker load --input verified-images/verified-images.tar
+      - name: Authenticate to GHCR with the job-scoped token
+        if: steps.manifest.outputs.has_images == 'true'
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Push verified images and record immutable digests
+        if: steps.manifest.outputs.has_images == 'true'
+        shell: bash
+        run: |
+          prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+          : > image-digests.txt
+          for component in api worker; do
+            source_image="cafeteria-$component:$SOURCE_SHA"
+            if docker image inspect "$source_image" >/dev/null 2>&1; then
+              target_image="$prefix/$component:$SOURCE_SHA"
+              docker tag "$source_image" "$target_image"
+              docker push "$target_image"
+              digest=$(docker inspect --format='{{index .RepoDigests 0}}' "$target_image")
+              test -n "$digest" || { echo "::error::No registry digest returned for $component."; exit 1; }
+              printf '%s\n' "$digest" >> image-digests.txt
+              printf '%s artifact: `%s`\nSource SHA: `%s`\n' "$component" "$digest" "$SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          test -s image-digests.txt || { echo '::error::The verified CI archive listed images but contained none.'; exit 1; }
