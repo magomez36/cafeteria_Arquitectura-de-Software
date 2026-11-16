@@ -4,9 +4,13 @@ Monorepo de TypeScript para la aplicación web de cafetería. La base contiene `
 
 ## Requisitos
 
+Comprueba `node --version` (`v24.x`), `pnpm --version` (`10.12.4`) y `docker compose version`. En una estacion temporal puedes usar `npm exec --yes --package=node@24 --package=pnpm@10.12.4 -- pnpm <comando>` sin cambiar la instalacion global.
+
 - Windows 11, macOS o Linux.
 - Node.js 24 LTS y pnpm 10.12.4 (`npm install --global pnpm@10.12.4` si Corepack no está disponible).
 - Docker Desktop con Docker Compose v2.
+
+En macOS/Linux usa `cp .env.example .env`; en Windows PowerShell usa `Copy-Item .env.example .env`. Mantén `pnpm install --frozen-lockfile` para instalaciones reproducibles y coordina cambios de manifiesto/lockfile con el integrador.
 
 ## Instalación y ejecución
 
@@ -21,6 +25,14 @@ pnpm dev
 La web está en <http://localhost:3000>, la API en <http://localhost:4000/health>, RabbitMQ management en <http://localhost:15672> (guest/guest) y Mailpit en <http://localhost:8025>. Postgres usa el puerto local 55432 para evitar conflictos con instalaciones locales habituales en 5432; Redis y RabbitMQ exponen puertos locales para desarrollo. No uses estos valores fuera del entorno local.
 
 En otra terminal, los controles de repositorio son `pnpm lint`, `pnpm typecheck`, `pnpm test` y `pnpm build`. `pnpm dev` inicia web, API y worker mediante Turborepo. El worker permanece en espera si no hay consumidor de dominio registrado.
+
+## Comprobaciones adicionales
+
+Para suites de navegador instala Chromium con `pnpm --filter @cafeteria/web exec playwright install chromium` y ejecuta `pnpm --filter @cafeteria/web test:e2e`. La home y `/health` se cubren automaticamente; las verificaciones manuales NVDA/VoiceOver quedan registradas en [docs/accessibility/acceptance.md](docs/accessibility/acceptance.md).
+
+- `pnpm coverage` crea reportes LCOV; solo un Quality Gate Sonar remoto calculado acredita el umbral de calidad.
+- `pnpm --filter @cafeteria/api flags:set catalog.new-menu true|false` cambia un flag local en Redis. El API aplica la decision en servidor y expone solo un allowlist de lectura.
+- Proveedores, workflows externos, Grafana y ramas protegidas necesitan configuracion real fuera del repositorio. Consulta `docs/deploy/`, `docs/observability/` y `docs/contributing/branch-protection.md`.
 
 ## Migraciones
 

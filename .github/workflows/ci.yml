@@ -63,12 +63,45 @@ jobs:
       - name: API integration tests
         if: steps.affected.outputs.api == 'true'
         run: pnpm --filter @cafeteria/api test:integration
+      - name: API health smoke tests
+        if: steps.affected.outputs.api == 'true'
+        run: pnpm --filter @cafeteria/api test:e2e
       - name: Worker integration tests
         if: steps.affected.outputs.worker == 'true'
         run: pnpm --filter @cafeteria/worker test:integration
       - name: Build affected workspaces
         if: steps.affected.outputs.has_code == 'true'
         run: pnpm exec turbo run build --filter="...[${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}]"
+      - name: Install Chromium for Playwright
+        if: steps.affected.outputs.has_code == 'true'
+        run: pnpm --filter @cafeteria/web exec playwright install --with-deps chromium
+      - name: End-to-end and automated accessibility tests
+        if: steps.affected.outputs.has_code == 'true'
+        env:
+          CI: true
+        run: pnpm --filter @cafeteria/web test:e2e
+      - name: Generate LCOV reports for all workspaces
+        if: steps.affected.outputs.has_code == 'true'
+        run: pnpm coverage
+      - name: Require SonarQube project and credentials
+        if: steps.affected.outputs.has_code == 'true'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+          SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+        run: |
+          test -n "$SONAR_TOKEN" || { echo '::error::Configure the SONAR_TOKEN repository secret.'; exit 1; }
+          test -n "$SONAR_PROJECT_KEY" || { echo '::error::Configure the SONAR_PROJECT_KEY repository variable.'; exit 1; }
+          test -n "$SONAR_ORGANIZATION" || { echo '::error::Configure the SONAR_ORGANIZATION repository variable.'; exit 1; }
+      - name: SonarQube analysis and blocking Quality Gate
+        if: steps.affected.outputs.has_code == 'true'
+        uses: SonarSource/sonarqube-scan-action@e805d875275f728fac1885b413934be6d7c63f65 # v8.4.1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >-
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
 
   security:
     name: security

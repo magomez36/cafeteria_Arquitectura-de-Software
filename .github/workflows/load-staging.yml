@@ -1,0 +1,38 @@
+name: Staging load test
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-load-test
+  cancel-in-progress: false
+
+jobs:
+  k6:
+    name: k6-staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Require explicitly configured staging endpoints
+        env:
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+        run: |
+          test -n "$STAGING_BASE_URL" || { echo '::error::Set STAGING_BASE_URL in the staging Environment.'; exit 1; }
+          test -n "$STAGING_API_URL" || { echo '::error::Set STAGING_API_URL in the staging Environment.'; exit 1; }
+          python -c "import os,urllib.parse,sys; urls=[os.environ['STAGING_BASE_URL'],os.environ['STAGING_API_URL']]; hosts=[urllib.parse.urlparse(u).hostname or '' for u in urls]; sys.exit(0 if all(urllib.parse.urlparse(u).scheme=='https' and not any(x in h.lower().split('.') for x in ('prod','production')) for u,h in zip(urls,hosts)) else 1)" || { echo '::error::Staging URLs must be HTTPS and must not use production-like hostnames.'; exit 1; }
+      - name: Run low-volume staging-only load scenario
+        env:
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+        run: go run go.k6.io/k6@v0.54.0 run tests/load/staging.js

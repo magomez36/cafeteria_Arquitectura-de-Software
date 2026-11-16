@@ -1,1 +1,32 @@
-{"name":"@cafeteria/feature-flags","version":"0.0.0","private":true,"type":"module","exports":{".":"./src/index.ts"},"scripts":{"lint":"eslint .","typecheck":"tsc --noEmit -p tsconfig.json","test":"vitest run","build":"tsc -p tsconfig.build.json"},"devDependencies":{"@cafeteria/tsconfig":"workspace:*","@types/node":"^22.15.30","eslint":"^9.28.0","typescript":"^5.9.3","vitest":"^3.2.4"}}
+{
+  "name": "@cafeteria/feature-flags",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json",
+    "test:coverage": "vitest run --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=coverage"
+  },
+  "devDependencies": {
+    "@cafeteria/tsconfig": "workspace:*",
+    "@types/node": "^22.15.30",
+    "@vitest/coverage-v8": "5.1.0",
+    "eslint": "^9.28.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "redis": "5.8.2"
+  }
+}

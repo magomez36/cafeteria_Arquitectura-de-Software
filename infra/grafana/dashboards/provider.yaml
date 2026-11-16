@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: cafeteria-delivery
+    orgId: 1
+    folder: Delivery
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 60
+    options:
+      path: /etc/grafana/provisioning/dashboards/cafeteria

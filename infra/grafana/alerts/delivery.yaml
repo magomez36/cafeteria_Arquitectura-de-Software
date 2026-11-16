@@ -1,0 +1,51 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: cafeteria-delivery
+    folder: Delivery
+    interval: 1m
+    rules:
+      - uid: cafeteria-main-red
+        title: Main CI is failing
+        condition: fail
+        data:
+          - refId: fail
+            datasourceUid: ${DS_PROMETHEUS}
+            relativeTimeRange: { from: 900, to: 0 }
+            model:
+              {
+                expr: 'github_workflow_runs_total{branch="main",conclusion="failure"}',
+                instant: true,
+                refId: fail,
+              }
+        for: 2m
+        noDataState: NoData
+        execErrState: Error
+        annotations: { summary: Main branch quality workflow is failing }
+        labels: { severity: critical }
+      - uid: cafeteria-quality-gate-down
+        title: SonarQube Quality Gate failed
+        condition: fail
+        data:
+          - refId: fail
+            datasourceUid: ${DS_PROMETHEUS}
+            relativeTimeRange: { from: 1800, to: 0 }
+            model: { expr: 'sonarqube_quality_gate_status == 0', instant: true, refId: fail }
+        for: 2m
+        noDataState: NoData
+        execErrState: Error
+        annotations: { summary: Quality Gate status is failing }
+        labels: { severity: high }
+      - uid: cafeteria-change-failure-rate
+        title: Change failure rate increased
+        condition: fail
+        data:
+          - refId: fail
+            datasourceUid: ${DS_PROMETHEUS}
+            relativeTimeRange: { from: 86400, to: 0 }
+            model: { expr: 'dora_change_failure_ratio > 0.2', instant: true, refId: fail }
+        for: 10m
+        noDataState: NoData
+        execErrState: Error
+        annotations: { summary: Change failure rate exceeded the configured alert threshold }
+        labels: { severity: warning }

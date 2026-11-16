@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "jest --runInBand",
+    "test:coverage": "jest --runInBand --coverage --coverageReporters=lcov --coverageReporters=text",
     "test:integration": "jest --config test/jest-integration.json --runInBand"
   },
   "dependencies": {

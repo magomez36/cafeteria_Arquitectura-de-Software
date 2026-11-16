@@ -1,0 +1,15 @@
+# Desired-state checklist; workspace role IDs and user identities are provisioned in Grafana.
+# Individual contribution data stays disabled until these constraints are verified remotely.
+version: 1
+defaults:
+  team_dashboard: viewer
+  individual_dashboard: disabled
+individual_access:
+  enabled: false
+  required_role: authorized_contributor_metrics_reader
+  requirements:
+    - prior_team_notice
+    - documented_purpose_and_retention
+    - least_privilege_acl
+    - no_individual_ranking
+    - no_quality_inference_from_commit_counts

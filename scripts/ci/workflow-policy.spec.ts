@@ -8,6 +8,11 @@ import { parse } from 'yaml';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const ciPath = path.join(root, '.github/workflows/ci.yml');
 const securityPath = path.join(root, '.github/workflows/security.yml');
+const previewPath = path.join(root, '.github/workflows/deploy-preview.yml');
+const publishPath = path.join(root, '.github/workflows/publish-images.yml');
+const releasePleasePath = path.join(root, '.github/workflows/release-please.yml');
+const telemetryPath = path.join(root, '.github/workflows/telemetry.yml');
+const loadStagingPath = path.join(root, '.github/workflows/load-staging.yml');
 
 interface WorkflowStep {
   readonly name?: string;
@@ -16,6 +21,7 @@ interface WorkflowStep {
 }
 
 interface WorkflowJob {
+  readonly environment?: string;
   readonly needs?: string[];
   readonly permissions?: Record<string, string>;
   readonly steps: WorkflowStep[];
@@ -23,6 +29,7 @@ interface WorkflowJob {
 
 interface Workflow {
   readonly on: {
+    readonly push?: { readonly branches?: string[] };
     readonly pull_request?: { readonly branches?: string[] };
     readonly pull_request_target?: unknown;
     readonly workflow_call?: unknown;
@@ -67,16 +74,109 @@ test('pnpm is installed before setup-node configures the pnpm cache', async () =
   assert.equal(qualitySteps[nodeSetupIndex]?.with?.cache, 'pnpm');
 });
 
-test('CI actions are pinned to full commit SHAs and PR workflows use no deployment secrets', async () => {
-  for (const file of [ciPath, securityPath]) {
+test('code changes generate workspace LCOV and require a blocking SonarQube gate', async () => {
+  const ci = await workflow(ciPath);
+  const qualitySteps = ci.jobs.quality.steps;
+  const coverageIndex = qualitySteps.findIndex(
+    (step) => step.name === 'Generate LCOV reports for all workspaces',
+  );
+  const credentialsIndex = qualitySteps.findIndex(
+    (step) => step.name === 'Require SonarQube project and credentials',
+  );
+  const analysisIndex = qualitySteps.findIndex(
+    (step) => step.name === 'SonarQube analysis and blocking Quality Gate',
+  );
+  const sonarProperties = await readFile(path.join(root, 'sonar-project.properties'), 'utf8');
+  const workflowSource = await readFile(ciPath, 'utf8');
+
+  assert.ok(coverageIndex >= 0, 'the quality job must generate coverage');
+  assert.ok(
+    credentialsIndex > coverageIndex,
+    'credentials must be validated after LCOV generation',
+  );
+  assert.ok(analysisIndex > credentialsIndex, 'analysis must follow credential validation');
+  assert.match(workflowSource, /SONAR_TOKEN:\s*\$\{\{ secrets\.SONAR_TOKEN \}\}/);
+  assert.match(workflowSource, /SONAR_PROJECT_KEY:\s*\$\{\{ vars\.SONAR_PROJECT_KEY \}\}/);
+  assert.match(workflowSource, /SONAR_ORGANIZATION:\s*\$\{\{ vars\.SONAR_ORGANIZATION \}\}/);
+  assert.match(workflowSource, /test -n "\$SONAR_TOKEN".*exit 1/s);
+  assert.match(sonarProperties, /sonar\.qualitygate\.wait=true/);
+  assert.equal((sonarProperties.match(/coverage\/lcov\.info/g) ?? []).length, 6);
+});
+
+test('CI actions are pinned, base PR CI has no deployment secrets, and preview is gated', async () => {
+  for (const file of [
+    ciPath,
+    securityPath,
+    previewPath,
+    publishPath,
+    releasePleasePath,
+    telemetryPath,
+    loadStagingPath,
+  ]) {
     const source = await readFile(file, 'utf8');
-    for (const match of source.matchAll(/^\s*uses:\s*([^\s#]+)\s*$/gm)) {
+    const actionReferences = [...source.matchAll(/^[ \t]*(?:-[ \t]*)?uses:[ \t]*([^ \t\r\n#]+)/gm)];
+    assert.ok(actionReferences.length > 0, `${file} must contain pinned actions`);
+    for (const match of actionReferences) {
       const reference = match[1];
       if (reference.startsWith('./')) continue;
       assert.match(reference, /@[0-9a-f]{40}$/, `${reference} must use an immutable SHA`);
     }
-    assert.doesNotMatch(source, /secrets\.(VERCEL|RENDER|GHCR|PRODUCTION)/i);
+    if (file !== previewPath)
+      assert.doesNotMatch(source, /secrets\.(VERCEL|RENDER|GHCR|PRODUCTION)/i);
   }
+  const preview = await workflow(previewPath);
+  assert.deepEqual(preview.jobs['deploy-preview']?.needs, ['require-ci']);
+  const previewSource = await readFile(previewPath, 'utf8');
+  assert.match(previewSource, /head\.repo\.full_name == github\.repository/);
+  assert.match(previewSource, /ref: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
+  assert.match(previewSource, /prebuilt artifact without deploy credentials/);
+  assert.equal(preview.jobs['deploy-preview']?.environment, 'preview');
+  const previewSteps = preview.jobs['deploy-preview']?.steps.map((step) => step.name ?? '') ?? [];
+  assert.ok(
+    previewSteps.indexOf('Deploy the prebuilt preview') <
+      previewSteps.indexOf('Install Chromium for preview smoke and accessibility tests'),
+  );
+  assert.ok(
+    previewSteps.indexOf('Install Chromium for preview smoke and accessibility tests') <
+      previewSteps.indexOf('Verify preview web and shared staging API'),
+  );
+  assert.match(previewSource, /RENDER_STAGING_API_URL/);
+  assert.doesNotMatch(await readFile(ciPath, 'utf8'), /secrets\.(VERCEL|RENDER|GHCR|PRODUCTION)/i);
+  assert.doesNotMatch(
+    await readFile(securityPath, 'utf8'),
+    /secrets\.(VERCEL|RENDER|GHCR|PRODUCTION)/i,
+  );
+});
+
+test('GHCR publication is restricted to main and scans each image before token-based push', async () => {
+  const publish = await workflow(publishPath);
+  assert.deepEqual(publish.on.push?.branches, ['main']);
+  assert.equal(publish.permissions.contents, 'read');
+  assert.equal(publish.jobs.publish?.permissions?.packages, 'write');
+  assert.equal(publish.jobs.publish?.permissions?.contents, 'read');
+
+  const steps = publish.jobs.publish.steps.map((step) => step.name ?? '');
+  assert.ok(
+    steps.indexOf('Build API image for this immutable commit') <
+      steps.indexOf('Scan API image before registry publication'),
+  );
+  assert.ok(
+    steps.indexOf('Scan API image before registry publication') <
+      steps.indexOf('Build worker image for this immutable commit'),
+  );
+  assert.ok(
+    steps.indexOf('Build worker image for this immutable commit') <
+      steps.indexOf('Scan worker image before registry publication'),
+  );
+  assert.ok(
+    steps.indexOf('Scan worker image before registry publication') <
+      steps.indexOf('Authenticate to GHCR with the job-scoped token'),
+  );
+  assert.ok(
+    steps.indexOf('Authenticate to GHCR with the job-scoped token') <
+      steps.indexOf('Push scanned API and worker images'),
+  );
+  assert.match(await readFile(publishPath, 'utf8'), /cancel-in-progress: false/);
 });
 
 test('security scanning is part of the required PR workflow and image scans follow image builds', async () => {

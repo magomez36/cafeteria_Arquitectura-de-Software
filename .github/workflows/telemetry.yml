@@ -1,0 +1,48 @@
+name: Delivery telemetry
+
+on:
+  workflow_run:
+    workflows: [Pull request CI, Staging deployment, Production release]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: telemetry-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: collect
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout trusted default branch source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          version: 10.12.4
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Install immutable dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Record workflow outcome, immutable SHA and duration
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_OUTPUT_FILE: telemetry.jsonl
+        run: pnpm exec tsx scripts/telemetry/publish.ts
+      - name: Retain telemetry if Grafana is unavailable
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: delivery-telemetry-${{ github.event.workflow_run.id }}
+          path: telemetry.jsonl
+          if-no-files-found: error
+          retention-days: 30

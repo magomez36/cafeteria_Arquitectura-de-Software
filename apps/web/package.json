@@ -1,1 +1,35 @@
-{"name":"@cafeteria/web","version":"0.0.0","private":true,"scripts":{"dev":"next dev -p 3000","build":"next build","start":"next start -p 3000","lint":"eslint .","typecheck":"tsc --noEmit","test":"vitest run"},"dependencies":{"@cafeteria/ui":"workspace:*","next":"^15.5.4","react":"^19.1.1","react-dom":"^19.1.1"},"devDependencies":{"@types/node":"^22.15.30","@types/react":"^19.1.8","@types/react-dom":"^19.1.7","@vitejs/plugin-react":"^4.7.0","eslint":"^9.28.0","jsdom":"^26.1.0","typescript":"^5.9.3","vite":"^6.3.5","vitest":"^3.2.4"}}
+{
+  "name": "@cafeteria/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test --config playwright.config.ts",
+    "test:coverage": "vitest run --coverage.enabled --coverage.reporter=lcov --coverage.reportsDirectory=coverage"
+  },
+  "dependencies": {
+    "@cafeteria/ui": "workspace:*",
+    "next": "^15.5.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^22.15.30",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "5.1.0",
+    "eslint": "^9.28.0",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  }
+}

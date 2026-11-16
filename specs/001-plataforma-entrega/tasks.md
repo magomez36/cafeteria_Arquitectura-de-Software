@@ -76,9 +76,9 @@ description: 'Tareas de implementación para la plataforma de entrega continua'
 - [ ] T027 [US1] Validar cada commit del rango (`head.sha`, `base.sha`) del PR, ejecutar checks de los módulos afectados, reportar estados `queued`, `in_progress`, `success`, `failure` o `cancelled` y duración por job, y cumplir objetivo <15 minutos para hasta 10 commits en `scripts/ci/validate-commit-range.ts` y `.github/workflows/ci.yml`.
 - [x] T028 [P] [US1] Configurar pruebas de integración Testcontainers con Postgres, Redis y RabbitMQ reales; probar conexión, migraciones desde base vacía y validación de orden/prefijos únicos de migraciones en `apps/api/test/integration/`, `apps/api/test/migrations/` y `apps/worker/test/integration/`.
 - [ ] T029 [US1] Añadir escaneos bloqueantes de dependencias con vulnerabilidad alta o crítica (OSV/npm audit), secretos detectados (gitleaks) y análisis estático (CodeQL); ejecutar Trivy sobre las imágenes construidas por T026 en el mismo check requerido antes del merge y fallar ante hallazgos altos o críticos en `.github/workflows/security.yml` y `.github/workflows/ci.yml`.
-- [ ] T030 [US1] Generar LCOV por workspace y configurar SonarQube para código nuevo con cobertura ≥80% (≥95% en `promociones`, `pedidos`, `pagos`), 0 bugs nuevos, 0 vulnerabilidades nuevas, 100% security hotspots revisados, duplicación <3% y ratings A; resultado `not-computed` no es aprobación en `sonar-project.properties` y `.github/workflows/ci.yml`.
+- [x] T030 [US1] Generar LCOV por workspace y configurar SonarQube para código nuevo con cobertura ≥80% (≥95% en `promociones`, `pedidos`, `pagos`), 0 bugs nuevos, 0 vulnerabilidades nuevas, 100% security hotspots revisados, duplicación <3% y ratings A; resultado `not-computed` no es aprobación en `sonar-project.properties` y `.github/workflows/ci.yml`.
 - [ ] T031 [US1] Verificar en PR real que un Quality Gate fallido de SonarQube monorepo aparece como check requerido y bloquea el merge; si el check nativo no funciona, configurar agregación/proyectos separados sin reducir umbrales en `docs/ci/sonarqube-monorepo.md` y `.github/workflows/ci.yml`. **Externo**: proyecto/token SonarQube y settings GitHub.
-- [ ] T032 [US1] Configurar Playwright + axe para el alcance del Spec #1: página inicial y contrato HTTP `/health` en preview, comprobaciones de teclado/foco/contraste/movimiento reducido; dejar extensiones para registro, carrito y checkout a los specs que implementen esos flujos, sin marcarlos como aprobados en esta fase, en `apps/web/e2e/`, `playwright.config.ts` y `.github/workflows/ci.yml`.
+- [x] T032 [US1] Configurar Playwright + axe para el alcance del Spec #1: página inicial y contrato HTTP `/health` en preview, comprobaciones de teclado/foco/contraste/movimiento reducido; dejar extensiones para registro, carrito y checkout a los specs que implementen esos flujos, sin marcarlos como aprobados en esta fase, en `apps/web/e2e/`, `playwright.config.ts` y `.github/workflows/ci.yml`.
 - [ ] T033 [US1] Activar reglas remotas de `main`: PR obligatorio, una aprobación, checks requeridos, sin push directo e historial lineal; documentar nombres estables de checks en `docs/contributing/branch-protection.md`. **Externo**: permisos de administración del repositorio GitHub.
 - [ ] T034 [US1] Validar respuestas visibles para PR válido, commit inválido/intermedio roto, test fallido, cobertura insuficiente, secreto detectado y vulnerabilidad alta/crítica de dependencia o imagen en `docs/ci/acceptance.md`.
 
@@ -92,8 +92,8 @@ description: 'Tareas de implementación para la plataforma de entrega continua'
 **Independent Test**: PR aprobado por US1 muestra enlace preview con E2E/axe; merge despliega artefactos identificados por SHA en staging y pasa smoke; un fallo conserva la versión anterior y notifica.
 **Dependencias**: US1 y configuración externa de Vercel/Render/GHCR. Preview de backend puede usar staging compartido si Render no tiene Preview Environments.
 
-- [ ] T035 [P] [US2] Añadir pruebas de contrato para validar que el despliegue registra entorno, SHA, artefacto, estado, fechas y rollback relacionado; el artefacto debe ser digest/prebuilt inmutable, no se reconstruye al promover y la versión previa se conserva en `scripts/deploy/deployment-contract.spec.ts`.
-- [ ] T036 [US2] Añadir smoke tests de página web y `/health` en `apps/web/e2e/staging-smoke.spec.ts` y `apps/api/test/staging-smoke.spec.ts`.
+- [x] T035 [P] [US2] Añadir pruebas de contrato para validar que el despliegue registra entorno, SHA, artefacto, estado, fechas y rollback relacionado; el artefacto debe ser digest/prebuilt inmutable, no se reconstruye al promover y la versión previa se conserva en `scripts/deploy/deployment-contract.spec.ts`.
+- [x] T036 [US2] Añadir smoke tests de página web y `/health` en `apps/web/e2e/staging-smoke.spec.ts` y `apps/api/test/staging-smoke.spec.ts`.
 - [ ] T037 [US2] Configurar build Vercel prebuilt para `apps/web` sin deploy Git automático y con separación de variables preview/staging/prod en `vercel.json` y `.github/workflows/deploy-preview.yml`. **Externo**: proyecto, token y variables Vercel.
 - [ ] T038 [US2] Configurar workflow para publicar en GHCR por SHA/digest las imágenes ya construidas y escaneadas por CI, sin exponer credenciales a PRs, en `.github/workflows/publish-images.yml`.
 - [ ] T039 [US2] Definir `render.yaml` para API, worker, Postgres/backup/réplica, Key Value y RabbitMQ privado; servicios de datos/cola/workers solo son accesibles desde la red privada; configurar `autoDeployTrigger: off`, `preDeployCommand: pnpm db:migrate`, healthcheck `/health` y región común con Vercel. **Externo**: cuenta, región, plan y decisión Render RabbitMQ/CloudAMQP.
@@ -114,7 +114,7 @@ description: 'Tareas de implementación para la plataforma de entrega continua'
 **Dependencias**: staging estable (US2), secrets por environment, Render/Vercel/GHCR operativos y autorización de release.
 
 - [ ] T045 [P] [US3] Añadir pruebas de workflow para aprobación requerida, despliegue serializado, orden API→web y rollback enlazado al despliegue previo en `scripts/deploy/production-release.spec.ts`.
-- [ ] T046 [US3] Configurar release-please para versionado semántico, changelog y etiqueta derivada de Conventional Commits en `.github/workflows/release-please.yml`, `release-please-config.json` y `.release-please-manifest.json`.
+- [x] T046 [US3] Configurar release-please para versionado semántico, changelog y etiqueta derivada de Conventional Commits en `.github/workflows/release-please.yml`, `release-please-config.json` y `.release-please-manifest.json`.
 - [ ] T047 [US3] Crear GitHub Environment `production` con aprobadores requeridos y secrets aislados, documentando nombres sin valores en `docs/deploy/production-environment.md`. **Externo**: owner/admin del repo y plan GitHub compatible.
 - [ ] T048 [US3] Crear workflow serializado de release que exija tag/Environment aprobado, ejecute predeploy/migraciones y despliegue API y worker antes de frontend desde artefactos validados en `.github/workflows/release-production.yml`. **Externo**: API tokens/Environments de Render, Vercel y GHCR.
 - [ ] T049 [US3] Añadir pruebas del predeploy que simulen error de migración y confirmen que la versión anterior sigue activa en `apps/api/test/deploy-migration.e2e-spec.ts` y `scripts/deploy/production-release.spec.ts`.
@@ -131,9 +131,9 @@ description: 'Tareas de implementación para la plataforma de entrega continua'
 **Independent Test**: revertir una selección de commit de `main`, incluidos cambios con migración aplicada; comprobar staging y estado de datos; apagar una feature flag sin nuevo deploy.
 **Dependencias**: CI y staging (US1–US2), despliegue de schema/migraciones y configuración de flags.
 
-- [ ] T052 [P] [US4] Añadir pruebas de integración que verifiquen migraciones expand/contract compatibles con versión anterior en `apps/api/test/migrations/expand-contract.int-spec.ts`.
-- [ ] T053 [US4] Escribir primero pruebas de feature flags (ausente/default-off, true/false, Redis caído, cambio en runtime, allowlist de flags de UI y rechazo de escritura pública) y después implementar `FeatureFlagReader`, provider node-redis y enforcement server-side en `packages/feature-flags/src/`, endpoint read-only en `apps/api/src/platform/feature-flags/` y CLI de operación privada en `apps/api/src/ops/set-feature-flag.ts`; no implementar flags de negocio.
-- [ ] T054 [US4] Documentar commits atómicos, `git revert`, fixup/autosquash y guía de migración compensatoria en `docs/contributing/revert-and-migrations.md`.
+- [x] T052 [P] [US4] Añadir pruebas de integración que verifiquen migraciones expand/contract compatibles con versión anterior en `apps/api/test/migrations/expand-contract.int-spec.ts`.
+- [x] T053 [US4] Escribir primero pruebas de feature flags (ausente/default-off, true/false, Redis caído, cambio en runtime, allowlist de flags de UI y rechazo de escritura pública) y después implementar `FeatureFlagReader`, provider node-redis y enforcement server-side en `packages/feature-flags/src/`, endpoint read-only en `apps/api/src/platform/feature-flags/` y CLI de operación privada en `apps/api/src/ops/set-feature-flag.ts`; no implementar flags de negocio.
+- [x] T054 [US4] Documentar commits atómicos, `git revert`, fixup/autosquash y guía de migración compensatoria en `docs/contributing/revert-and-migrations.md`.
 - [ ] T055 [US4] Configurar prueba programada de reversión de commit no destructiva a staging y confirmar que recorre required checks antes de integrar en `.github/workflows/revert-drill.yml`.
 - [ ] T056 [US4] Ejecutar simulacro de reversión con commit funcional y migración ya aplicada; verificar 100% de despliegues elegidos sin intervención extra (SC-007) y registrar evidencia en `docs/deploy/revert-drill.md`.
 
@@ -147,13 +147,13 @@ description: 'Tareas de implementación para la plataforma de entrega continua'
 **Independent Test**: despliegue aparece en dashboards en menos de una hora; revisiones/tests/documentación son visibles; usuario no autorizado no accede al dashboard individual; alertas responden a escenarios controlados.
 **Dependencias**: eventos CI/deploy y releases US1–US3, cuenta Grafana, fuentes GitHub/SonarQube y aprobación de política de privacidad.
 
-- [ ] T057 [P] [US5] Añadir pruebas de esquema para métricas con valor/unidad, fuente, frescura, periodo y `collectedAt`; sujeto permitido `equipo o persona autorizada`, dato individual solo con aviso y ACL, sin rankings, y sin inferir calidad individual por conteos de commits en `packages/contracts/src/telemetry.schema.spec.ts`.
+- [x] T057 [P] [US5] Añadir pruebas de esquema para métricas con valor/unidad, fuente, frescura, periodo y `collectedAt`; sujeto permitido `equipo o persona autorizada`, dato individual solo con aviso y ACL, sin rankings, y sin inferir calidad individual por conteos de commits en `packages/contracts/src/telemetry.schema.spec.ts`.
 - [ ] T058 [US5] Emitir métricas de duración, resultado, SHA y despliegue desde GitHub Actions con reintento/retención si Grafana no está disponible en `.github/workflows/telemetry.yml` y `scripts/telemetry/publish.ts`.
 - [ ] T059 [US5] Configurar Grafana Cloud y fuentes de GitHub, pipeline y SonarQube con credenciales de mínimo alcance en `infra/grafana/datasources.yaml` y `docs/observability/setup.md`. **Externo**: cuenta Grafana, GitHub App/token y SonarQube API.
-- [ ] T060 [US5] Crear dashboards de DORA, flujo de PR, calidad y salud del pipeline en `infra/grafana/dashboards/delivery.json`, `workflow.json`, `quality.json` y `pipeline-health.json`.
-- [ ] T061 [US5] Crear dashboard de aporte que incluya cambios integrados, revisiones, tests y documentación, agregado por equipo y sin orden/ranking individual en `infra/grafana/dashboards/team-contribution.json`.
+- [x] T060 [US5] Crear dashboards de DORA, flujo de PR, calidad y salud del pipeline en `infra/grafana/dashboards/delivery.json`, `workflow.json`, `quality.json` y `pipeline-health.json`.
+- [x] T061 [US5] Crear dashboard de aporte que incluya cambios integrados, revisiones, tests y documentación, agregado por equipo y sin orden/ranking individual en `infra/grafana/dashboards/team-contribution.json`.
 - [ ] T062 [US5] Configurar roles/ACL, aviso de recolección y retención para el dashboard individual en `infra/grafana/access.yaml` y `docs/privacy/team-metrics.md`. **Externo**: roles del workspace Grafana y comunicación al equipo.
-- [ ] T063 [US5] Configurar alertas para `main` rojo, descenso de Quality Gate y aumento de change failure rate en `infra/grafana/alerts/delivery.yaml`.
+- [x] T063 [US5] Configurar alertas para `main` rojo, descenso de Quality Gate y aumento de change failure rate en `infra/grafana/alerts/delivery.yaml`.
 - [ ] T064 [US5] Crear escenario k6 de carga contra staging y programarlo nightly y antes de temporadas de festividades en `tests/load/staging.js` y `.github/workflows/load-staging.yml`. **Externo**: runner de CI, credenciales/URL staging; nunca producción.
 - [ ] T065 [US5] Verificar reflexión de cada despliegue en menos de una hora (SC-008), permisos/privacidad, alertas y visibilidad equilibrada de contribuciones en `docs/observability/acceptance.md`.
 
@@ -165,10 +165,10 @@ description: 'Tareas de implementación para la plataforma de entrega continua'
 
 **Propósito**: validar el flujo mínimo completo de Fase 0 y cerrar brechas entre spec y plataforma implementada.
 
-- [ ] T066 [P] Actualizar guía de instalación y comandos probados, incluyendo Docker, Node/pnpm y troubleshooting multiplataforma en `README.md`.
+- [x] T066 [P] Actualizar guía de instalación y comandos probados, incluyendo Docker, Node/pnpm y troubleshooting multiplataforma en `README.md`.
 - [ ] T067 [P] Revisar accesibilidad AAA del sitio mínimo con axe sin violaciones, teclado, foco visible, contraste ≥7:1 y movimiento reducido; verificar manualmente con NVDA o VoiceOver cada interfaz/flujo crítico antes de cada release y documentar dispositivo, páginas y hallazgos en `apps/web/e2e/accessibility.spec.ts` y `docs/accessibility/acceptance.md`.
 - [ ] T068 Ejecutar escenario de extremo a extremo de quickstart: commit/PR → checks → preview → merge → staging → dashboards; registrar tiempos SC-001/004/009 en `specs/001-plataforma-entrega/quickstart.md`.
-- [ ] T069 Revisar FR-001–FR-024 y SC-001–SC-009 contra contratos, workflows, documentación y verificaciones; registrar brechas remanentes en `docs/ci/spec-001-gap-review.md`.
+- [x] T069 Revisar FR-001–FR-024 y SC-001–SC-009 contra contratos, workflows, documentación y verificaciones; registrar brechas remanentes en `docs/ci/spec-001-gap-review.md`.
 
 **Criterio final de aceptación**: cambio mínimo de página y health endpoint atraviesa controles, preview, staging y panel de entrega; rollback y producción con aprobación están ensayados; métricas personales protegidas. Esto no implica que se haya publicado a producción.
 
