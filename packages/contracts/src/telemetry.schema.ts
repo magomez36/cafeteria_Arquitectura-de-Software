@@ -41,9 +41,12 @@ export function validateTelemetryMetric(metric: TelemetryMetric): string[] {
   ) {
     errors.push('individual telemetry requires an identified, authorized subject and prior notice');
   }
+  const normalizedName = metric.name.toLowerCase();
+  const infersQualityFromCommitCount =
+    normalizedName.includes('quality') && normalizedName.includes('commit');
   if (
     metric.subject.type === 'person' &&
-    /rank|quality.*commit|commit.*quality/i.test(metric.name)
+    (normalizedName.includes('rank') || infersQualityFromCommitCount)
   ) {
     errors.push('individual ranking and commit-count-based quality inference are prohibited');
   }

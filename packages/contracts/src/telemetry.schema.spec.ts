@@ -41,6 +41,20 @@ describe('telemetry schema', () => {
         subject: individual,
       }),
     ).toContain('individual ranking and commit-count-based quality inference are prohibited');
+    expect(
+      validateTelemetryMetric({
+        ...validMetric,
+        name: 'commit quality inferred for an individual',
+        subject: individual,
+      }),
+    ).toContain('individual ranking and commit-count-based quality inference are prohibited');
+    expect(
+      validateTelemetryMetric({
+        ...validMetric,
+        name: 'team-ranking',
+        subject: individual,
+      }),
+    ).toContain('individual ranking and commit-count-based quality inference are prohibited');
   });
 
   it('rejects malformed or reversed collection periods', () => {
