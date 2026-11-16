@@ -60,7 +60,8 @@ test('PR CI targets main, uses a stable concurrency group and read-only default 
   assert.ok(ci.jobs.images);
   assert.deepEqual(ci.jobs.images.needs, ['quality', 'security']);
   assert.match(ci.jobs.images.if ?? '', /always\(\).*needs\.security\.result == 'success'/);
-  assert.match(ci.jobs.images.if ?? '', /needs\.quality\.outputs\.api_changed != ''/);
+  assert.match(ci.jobs.images.if ?? '', /needs\.quality\.outputs\.api_changed == 'true'/);
+  assert.match(ci.jobs.images.if ?? '', /needs\.quality\.outputs\.worker_changed == 'true'/);
   assert.equal(ci.jobs.security.permissions?.['security-events'], 'write');
   assert.ok(ci.jobs.report);
   assert.deepEqual(ci.jobs.report.needs, ['quality', 'security', 'images']);
