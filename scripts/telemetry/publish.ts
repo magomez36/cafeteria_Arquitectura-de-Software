@@ -1,8 +1,10 @@
 import { appendFile, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import {
   validateTelemetryMetric,
   type TelemetryMetric,
 } from '../../packages/contracts/src/telemetry.schema.js';
+import { fileURLToPath } from 'node:url';
 
 interface WorkflowRun {
   readonly id: number;
@@ -80,7 +82,7 @@ async function main(): Promise<void> {
   }
 }
 
-if (process.env.GITHUB_EVENT_PATH) {
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   void main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : 'Unable to record telemetry.');
     process.exitCode = 1;
