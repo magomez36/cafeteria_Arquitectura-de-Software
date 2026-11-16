@@ -13,7 +13,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test && pnpm test:ci && pnpm --filter @cafeteria/api test:integration && pnpm --filter @cafeteria/worker test:integration && pnpm --filter @cafeteria/api test:e2e",
     "coverage": "turbo run test:coverage",
-    "test:ci": "tsx --test scripts/ci/commitlint-config.spec.ts scripts/ci/workflow-policy.spec.ts scripts/ci/report-workflow-run.spec.mjs scripts/deploy/deployment-contract.spec.ts scripts/deploy/production-release.spec.ts scripts/deploy/release-please-policy.spec.ts scripts/telemetry/publish.spec.ts scripts/telemetry/observability-policy.spec.ts scripts/load/validate-staging-targets.spec.mjs",
+    "test:ci": "tsx --test scripts/ci/commitlint-config.spec.ts scripts/ci/workflow-policy.spec.ts scripts/ci/postgres-startup-retry.spec.ts scripts/ci/report-workflow-run.spec.mjs scripts/deploy/deployment-contract.spec.ts scripts/deploy/production-release.spec.ts scripts/deploy/release-please-policy.spec.ts scripts/telemetry/publish.spec.ts scripts/telemetry/observability-policy.spec.ts scripts/load/validate-staging-targets.spec.mjs",
     "ci:commit-range": "tsx scripts/ci/validate-commit-range.ts",
     "ci:affected": "tsx scripts/ci/detect-affected.ts",
     "db:migrate": "pnpm --filter @cafeteria/api db:migrate",

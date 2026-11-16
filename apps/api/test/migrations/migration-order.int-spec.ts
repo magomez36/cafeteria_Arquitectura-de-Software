@@ -2,7 +2,7 @@ import { globSync } from 'node:fs';
 import path from 'node:path';
 import { runner } from 'node-pg-migrate';
 import { Client } from 'pg';
-import { GenericContainer, type StartedTestContainer } from 'testcontainers';
+import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainers';
 import { validateMigrationOrder } from '../../src/database/migration-files';
 
 describe('database migration safety', () => {
@@ -16,6 +16,7 @@ describe('database migration safety', () => {
         POSTGRES_DB: 'cafeteria_test',
       })
       .withExposedPorts(5432)
+      .withWaitStrategy(Wait.forLogMessage(/database system is ready to accept connections/, 2))
       .start();
   }, 120000);
 

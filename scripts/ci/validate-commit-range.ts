@@ -4,6 +4,7 @@ import { mkdtemp, rm, appendFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { isPostgresStartupTransientFailure } from './postgres-startup-retry.js';
 
 type Check = {
   name: string;
@@ -139,7 +140,7 @@ async function main(): Promise<void> {
             process.cwd(),
           );
           run('git', ['checkout', '--quiet', '--detach', sha], worktree);
-          const install = { name: 'install', status: 'in_progress' as const, durationMs: null };
+          const install: Check = { name: 'install', status: 'in_progress', durationMs: null };
           result.checks.push(install);
           const installStarted = Date.now();
           run(pnpmCommand(), ['install', '--frozen-lockfile'], worktree);
@@ -180,7 +181,43 @@ async function main(): Promise<void> {
             const integration: Check = { name, status: 'in_progress', durationMs: null };
             result.checks.push(integration);
             const integrationStarted = Date.now();
-            run(pnpmCommand(), ['--filter', workspace, 'test:integration'], worktree);
+            const integrationArgs = ['--filter', workspace, 'test:integration'];
+            let passed = false;
+            for (let attempt = 1; attempt <= 2; attempt += 1) {
+              const execution = spawnSync(pnpmCommand(), integrationArgs, {
+                cwd: worktree,
+                env: process.env,
+                encoding: 'utf8',
+                shell: process.platform === 'win32',
+                stdio: ['inherit', 'pipe', 'pipe'],
+              });
+              if (execution.stdout) process.stdout.write(execution.stdout);
+              if (execution.stderr) process.stderr.write(execution.stderr);
+              if (execution.error) throw execution.error;
+              if (execution.signal) {
+                throw new Error(
+                  `Integration tests terminated by ${execution.signal}: ${workspace}`,
+                );
+              }
+              if (execution.status === 0) {
+                passed = true;
+                break;
+              }
+              const output = `${execution.stdout ?? ''}\n${execution.stderr ?? ''}`;
+              if (
+                attempt === 1 &&
+                isPostgresStartupTransientFailure(execution.status, null, output)
+              ) {
+                process.stderr.write(
+                  '::warning::PostgreSQL was still starting; retrying this integration suite once.\n',
+                );
+                continue;
+              }
+              throw new Error(
+                `pnpm ${integrationArgs.join(' ')} exited with status ${String(execution.status)}${attempt > 1 ? ' after one PostgreSQL startup retry' : ''}`,
+              );
+            }
+            if (!passed) throw new Error(`Integration tests did not pass for ${workspace}.`);
             integration.status = 'success';
             integration.durationMs = Date.now() - integrationStarted;
           }
