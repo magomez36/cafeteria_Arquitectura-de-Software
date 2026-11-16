@@ -114,6 +114,7 @@ jobs:
   images:
     name: images
     needs: [quality, security]
+    if: ${{ always() && needs.security.result == 'success' && needs.quality.outputs.api_changed != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

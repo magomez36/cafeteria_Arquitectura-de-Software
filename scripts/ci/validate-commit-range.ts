@@ -83,10 +83,6 @@ async function main(): Promise<void> {
   }
   const commits = git('rev-list', '--reverse', `${base}..${head}`).split(/\r?\n/).filter(Boolean);
   if (!commits.length) throw new Error('The pull request commit range is empty.');
-  if (commits.length > 10)
-    throw new Error(
-      `The commit range contains ${commits.length} commits; the <15 minute validation target supports at most 10.`,
-    );
 
   const require = createRequire(import.meta.url);
   const commitlintCli = path.join(path.dirname(require.resolve('@commitlint/cli')), 'cli.js');

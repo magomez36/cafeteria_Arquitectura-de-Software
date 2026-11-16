@@ -23,6 +23,7 @@ interface WorkflowStep {
 
 interface WorkflowJob {
   readonly environment?: string;
+  readonly if?: string;
   readonly needs?: string[];
   readonly permissions?: Record<string, string>;
   readonly steps: WorkflowStep[];
@@ -58,6 +59,8 @@ test('PR CI targets main, uses a stable concurrency group and read-only default 
   assert.ok(ci.jobs.security);
   assert.ok(ci.jobs.images);
   assert.deepEqual(ci.jobs.images.needs, ['quality', 'security']);
+  assert.match(ci.jobs.images.if ?? '', /always\(\).*needs\.security\.result == 'success'/);
+  assert.match(ci.jobs.images.if ?? '', /needs\.quality\.outputs\.api_changed != ''/);
   assert.equal(ci.jobs.security.permissions?.['security-events'], 'write');
   assert.ok(ci.jobs.report);
   assert.deepEqual(ci.jobs.report.needs, ['quality', 'security', 'images']);
@@ -79,6 +82,8 @@ test('commit-range policy tests do not inherit GitHub runtime event payloads', a
   const commitRange = await readFile(commitRangePath, 'utf8');
   assert.match(commitRange, /delete testEnvironment\.GITHUB_EVENT_PATH/);
   assert.ok(commitRange.includes('scripts\\/(ci|deploy|telemetry)\\/'));
+  assert.doesNotMatch(commitRange, /commits\.length > 10/);
+  assert.match(commitRange, /durationMs >= 15 \* 60 \* 1000/);
 });
 
 test('code changes generate workspace LCOV and require a blocking SonarQube gate', async () => {
