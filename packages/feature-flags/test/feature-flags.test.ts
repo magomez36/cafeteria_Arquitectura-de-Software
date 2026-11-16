@@ -1,5 +1,30 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getPresentationFlags, RedisFeatureFlagStore, type FeatureFlagKey } from '../src/index';
+import { connectRedisFlagStore } from '../src/index';
+
+const { redisClient, createClient } = vi.hoisted(() => ({
+  redisClient: {
+    on: vi.fn(),
+    connect: vi.fn(),
+    get: vi.fn(),
+    set: vi.fn(),
+    quit: vi.fn(),
+    isOpen: false,
+  },
+  createClient: vi.fn(),
+}));
+
+vi.mock('redis', () => ({ createClient }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  redisClient.isOpen = false;
+  createClient.mockReturnValue(redisClient);
+  redisClient.connect.mockResolvedValue(undefined);
+  redisClient.get.mockResolvedValue(null);
+  redisClient.set.mockResolvedValue('OK');
+  redisClient.quit.mockResolvedValue('OK');
+});
 
 describe('RedisFeatureFlagStore', () => {
   it('defaults missing, malformed, unavailable and unnamespaced flags to off', async () => {
@@ -38,5 +63,33 @@ describe('RedisFeatureFlagStore', () => {
       set: vi.fn(async () => undefined),
     });
     await expect(store.set('bad key' as FeatureFlagKey, true)).rejects.toThrow(/module.flag/);
+  });
+
+  it('closes an open client and ignores a client without a close operation', async () => {
+    const quit = vi.fn(async () => undefined);
+    await new RedisFeatureFlagStore({ get: vi.fn(), set: vi.fn(), isOpen: true, quit }).close();
+    expect(quit).toHaveBeenCalledOnce();
+
+    await new RedisFeatureFlagStore({ get: vi.fn(), set: vi.fn(), isOpen: false }).close();
+    expect(quit).toHaveBeenCalledOnce();
+  });
+});
+
+describe('connectRedisFlagStore', () => {
+  it('registers an error listener and connects the configured client', async () => {
+    const store = await connectRedisFlagStore('redis://localhost:6379');
+
+    expect(createClient).toHaveBeenCalledWith({ url: 'redis://localhost:6379' });
+    expect(redisClient.on).toHaveBeenCalledWith('error', expect.any(Function));
+    expect(redisClient.connect).toHaveBeenCalledOnce();
+    await expect(store.isEnabled('catalog.new-menu')).resolves.toBe(false);
+  });
+
+  it('propagates connection failures so startup cannot claim the store is ready', async () => {
+    redisClient.connect.mockRejectedValueOnce(new Error('connection refused'));
+
+    await expect(connectRedisFlagStore('redis://localhost:6379')).rejects.toThrow(
+      'connection refused',
+    );
   });
 });
