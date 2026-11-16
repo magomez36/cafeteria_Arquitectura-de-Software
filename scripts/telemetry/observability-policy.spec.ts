@@ -32,6 +32,14 @@ test('nightly load execution can target only configured staging URLs and never g
   assert.ok(Object.hasOwn(workflow.on, 'workflow_dispatch'));
   assert.equal(workflow.jobs.k6.environment, 'staging');
   assert.equal(workflow.permissions.contents, 'read');
+  assert.match(
+    await readFile(path.join(root, '.github/workflows/load-staging.yml'), 'utf8'),
+    /node scripts\/load\/validate-staging-targets\.mjs/,
+  );
+  assert.doesNotMatch(
+    await readFile(path.join(root, '.github/workflows/load-staging.yml'), 'utf8'),
+    /python\s+-c/,
+  );
   assert.doesNotMatch(
     await readFile(path.join(root, '.github/workflows/load-staging.yml'), 'utf8'),
     /secrets\.|VERCEL|RENDER_API_TOKEN|environment:\s*production/i,
