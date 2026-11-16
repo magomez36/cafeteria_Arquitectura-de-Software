@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const productionHostLabel = /(^|[.-])(prod|production)([.-]|$)/i;
+const stagingHostLabel = /(^|[.-])(staging|preview)([.-]|$)/i;
 
 export function validateStagingTarget(value, name) {
   let url;
@@ -16,6 +17,9 @@ export function validateStagingTarget(value, name) {
   }
   if (productionHostLabel.test(url.hostname)) {
     throw new Error(`${name} must not target a production-like hostname.`);
+  }
+  if (!stagingHostLabel.test(url.hostname)) {
+    throw new Error(`${name} must include a staging or preview hostname label.`);
   }
   return url;
 }

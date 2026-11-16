@@ -14,4 +14,4 @@
 
 No se declara la historia US5 aceptada mientras los checks externos anteriores permanezcan pendientes.
 
-La guardia de destino de carga se valida localmente con HTTPS y etiquetas de hostname no productivas. El workflow invoca el mismo validador en Node.js antes de k6; no usa intérpretes ajenos al stack. Esta prueba no sustituye una ejecución real contra staging.
+La guardia de destino de carga se valida localmente con HTTPS, una etiqueta `staging` o `preview` y el rechazo de etiquetas productivas. El workflow invoca el mismo validador en Node.js antes de k6; no usa intérpretes ajenos al stack. Esta prueba no sustituye una ejecución real contra staging.

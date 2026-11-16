@@ -35,3 +35,10 @@ test('rejects production-like host labels', () => {
     );
   }
 });
+
+test('rejects HTTPS hosts that are not explicitly identified as staging or preview', () => {
+  assert.throws(
+    () => validateStagingTarget('https://api.example.net', 'STAGING_API_URL'),
+    /must include a staging or preview hostname label/,
+  );
+});
