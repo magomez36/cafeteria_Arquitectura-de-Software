@@ -38,6 +38,8 @@ jobs:
         env:
           GITHUB_EVENT_PATH: ${{ github.event_path }}
           GITHUB_OUTPUT_FILE: telemetry.jsonl
+          GRAFANA_OTLP_METRICS_ENDPOINT: ${{ vars.GRAFANA_OTLP_METRICS_ENDPOINT }}
+          GRAFANA_OTLP_AUTHORIZATION: ${{ secrets.GRAFANA_OTLP_AUTHORIZATION }}
         run: pnpm exec tsx scripts/telemetry/publish.ts
       - name: Retain telemetry if Grafana is unavailable
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

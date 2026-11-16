@@ -19,6 +19,18 @@ test('telemetry workflow reads trusted default-branch runs with read-only permis
   assert.equal(workflow.permissions.contents, 'read');
   assert.equal(workflow.permissions.actions, 'read');
   assert.equal(workflow.jobs.collect.steps.at(-1).with['retention-days'], 30);
+  const publishStep = workflow.jobs.collect.steps.find(
+    (step: { name?: string }) =>
+      step.name === 'Record workflow outcome, immutable SHA and duration',
+  );
+  assert.equal(
+    publishStep?.env?.GRAFANA_OTLP_METRICS_ENDPOINT,
+    '${{ vars.GRAFANA_OTLP_METRICS_ENDPOINT }}',
+  );
+  assert.equal(
+    publishStep?.env?.GRAFANA_OTLP_AUTHORIZATION,
+    '${{ secrets.GRAFANA_OTLP_AUTHORIZATION }}',
+  );
   for (const step of workflow.jobs.collect.steps.filter((entry: { uses?: string }) => entry.uses)) {
     assert.match(step.uses, /@[0-9a-f]{40}(?:\s|$)/);
   }
