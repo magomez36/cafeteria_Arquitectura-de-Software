@@ -6,11 +6,13 @@
 
 `apps/web/e2e/platform.spec.ts` checks the initial page with axe-core against WCAG 2.1 A/AA rules and verifies the `/health` HTTP contract. It also confirms the page heading is exposed as a level-one heading. The initial local run on 2026-11-15 passed both E2E tests with no axe violations.
 
+Local rerun on 2026-11-16: `pnpm --filter @cafeteria/web test:e2e` passed 4/4 tests, including axe, landmark/heading, AAA contrast, reduced motion, keyboard focus behavior, and the `/health` HTTP contract.
+
 The initial page has no interactive controls, so keyboard focus order and visible focus are not meaningfully exercised yet. The shared UI token stylesheet includes a `prefers-reduced-motion` rule; automated checks for interactive reduced-motion behavior belong with the screen that introduces motion.
 
 ## Manual assistive-technology checks
 
-Status: pending manual verification before the first production release. Do not treat the automated axe result as NVDA or VoiceOver evidence.
+Status: pending manual verification before the first production release. NVDA is not installed or discoverable in the current Windows environment, and VoiceOver is unavailable on Windows. Do not treat the automated axe result as NVDA or VoiceOver evidence.
 
 Record the following for every critical flow before release:
 
