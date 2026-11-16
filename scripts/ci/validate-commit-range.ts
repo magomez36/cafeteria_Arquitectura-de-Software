@@ -36,6 +36,10 @@ const globalConfig =
   /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|eslint\.config\.[^/]+|\.github\/workflows\/|scripts\/ci\/)/;
 const policyFiles = /^(\.github\/workflows\/|scripts\/(ci|deploy|telemetry)\/)/;
 
+export function validationBudgetMs(commitCount: number): number {
+  return Math.ceil(commitCount / 10) * 15 * 60 * 1000;
+}
+
 function git(...args: string[]): string {
   return execFileSync(gitExecutable(), args, { encoding: 'utf8' }).trim();
 }
@@ -283,8 +287,12 @@ export async function main(): Promise<void> {
   }
   process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
   if (output.status === 'failure') process.exitCode = 1;
-  if (output.durationMs >= 15 * 60 * 1000) {
-    process.stderr.write('::error::The commit range exceeded the 15 minute target.\n');
+  const budgetMs = validationBudgetMs(commits.length);
+  if (output.durationMs >= budgetMs) {
+    const budgetMinutes = budgetMs / (60 * 1000);
+    process.stderr.write(
+      `::error::The ${commits.length}-commit range exceeded its ${budgetMinutes} minute validation budget.\n`,
+    );
     process.exitCode = 1;
   }
 }

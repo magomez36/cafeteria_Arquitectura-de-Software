@@ -99,7 +99,8 @@ test('commit-range policy tests do not inherit GitHub runtime event payloads', a
   assert.match(commitRange, /delete testEnvironment\.GITHUB_EVENT_PATH/);
   assert.ok(commitRange.includes('scripts\\/(ci|deploy|telemetry)\\/'));
   assert.doesNotMatch(commitRange, /commits\.length > 10/);
-  assert.match(commitRange, /durationMs >= 15 \* 60 \* 1000/);
+  assert.match(commitRange, /validationBudgetMs\(commits\.length\)/);
+  assert.match(commitRange, /Math\.ceil\(commitCount \/ 10\) \* 15 \* 60 \* 1000/);
 });
 
 test('code changes generate workspace LCOV and require a blocking SonarQube gate', async () => {

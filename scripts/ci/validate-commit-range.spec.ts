@@ -3,10 +3,19 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
-import { main } from './validate-commit-range.js';
+import { main, validationBudgetMs } from './validate-commit-range.js';
 
 const verifiedBase = '437b02df447d0a4611b9cea601a69750c27cceb9';
 const verifiedHead = 'bd01bd9b502923b91164bb29972121c670eb590c';
+
+test('scales commit validation budget by groups of ten without relaxing the typical PR target', () => {
+  const minute = 60 * 1000;
+  assert.equal(validationBudgetMs(1), 15 * minute);
+  assert.equal(validationBudgetMs(10), 15 * minute);
+  assert.equal(validationBudgetMs(11), 30 * minute);
+  assert.equal(validationBudgetMs(20), 30 * minute);
+  assert.equal(validationBudgetMs(26), 45 * minute);
+});
 
 test('validates a documentation-only commit range and reports every check state', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'commit-range-policy-'));
