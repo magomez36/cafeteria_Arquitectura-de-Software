@@ -26,6 +26,7 @@ interface WorkflowJob {
   readonly if?: string;
   readonly needs?: string[];
   readonly permissions?: Record<string, string>;
+  readonly 'timeout-minutes'?: number;
   readonly steps: WorkflowStep[];
 }
 
@@ -83,6 +84,14 @@ test('pnpm is installed before setup-node configures the pnpm cache', async () =
   assert.ok(pnpmSetupIndex >= 0, 'the quality job must install pnpm');
   assert.ok(nodeSetupIndex > pnpmSetupIndex, 'pnpm setup must precede setup-node');
   assert.equal(qualitySteps[nodeSetupIndex]?.with?.cache, 'pnpm');
+});
+
+test('quality job leaves enough time for per-commit validation and the required gates', async () => {
+  const ci = await workflow(ciPath);
+  assert.ok(
+    (ci.jobs.quality['timeout-minutes'] ?? 0) >= 30,
+    'the quality job must allow commit-range validation to finish before running aggregate checks',
+  );
 });
 
 test('commit-range policy tests do not inherit GitHub runtime event payloads', async () => {
