@@ -233,6 +233,9 @@ function createGrafanaExporter(endpoint?: string, authorization?: string): PushM
   if (url.protocol !== 'https:') {
     throw new Error('Grafana OTLP endpoint must use HTTPS.');
   }
+  if (!url.pathname.endsWith('/v1/metrics')) {
+    throw new Error('Grafana OTLP metrics endpoint path must end with /v1/metrics.');
+  }
   return new OTLPMetricExporter({ url: url.toString(), headers: { Authorization: authorization } });
 }
 

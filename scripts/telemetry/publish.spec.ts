@@ -100,6 +100,33 @@ test('exports workflow duration and run provenance as OpenTelemetry metrics', as
   await exporter.shutdown();
 });
 
+test('requires the secure Grafana OTLP metrics endpoint path', async () => {
+  const record = workflowRunRecord({
+    id: 48,
+    name: 'Pull request CI',
+    head_sha: 'a'.repeat(40),
+    head_branch: 'main',
+    conclusion: 'success',
+    run_started_at: '2026-11-15T10:00:00.000Z',
+    updated_at: '2026-11-15T10:01:00.000Z',
+  });
+
+  await assert.rejects(
+    exportWorkflowMetrics(record, {
+      endpoint: 'https://otlp.example.test/otlp',
+      authorization: 'test-only',
+    }),
+    /path must end with \/v1\/metrics/,
+  );
+  await assert.rejects(
+    exportWorkflowMetrics(record, {
+      endpoint: 'http://otlp.example.test/otlp/v1/metrics',
+      authorization: 'test-only',
+    }),
+    /must use HTTPS/,
+  );
+});
+
 test('retries a transient Grafana export failure and then succeeds', async () => {
   let attempts = 0;
   const delegate: PushMetricExporter = {
