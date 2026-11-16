@@ -36,6 +36,25 @@ test('telemetry workflow reads trusted default-branch runs with read-only permis
   }
 });
 
+test('Grafana datasource template uses least-privilege secret references without credentials', async () => {
+  const sources = parse(
+    await readFile(path.join(root, 'infra/grafana/datasources.yaml'), 'utf8'),
+  ).datasources;
+  assert.equal(sources.length, 2);
+  const github = sources.find((source: { uid?: string }) => source.uid === 'cafeteria-github');
+  assert.equal(github?.type, 'grafana-github-datasource');
+  assert.equal(github?.jsonData.selectedAuthType, 'github-app');
+  assert.equal(github?.jsonData.appId, '$GRAFANA_GITHUB_APP_ID');
+  assert.equal(github?.jsonData.installationId, '$GRAFANA_GITHUB_INSTALLATION_ID');
+  assert.equal(github?.secureJsonData.privateKey, '$GRAFANA_GITHUB_APP_PRIVATE_KEY');
+
+  const metrics = sources.find((source: { uid?: string }) => source.uid === 'DS_PROMETHEUS');
+  assert.equal(metrics?.url, '$GRAFANA_CLOUD_PROMETHEUS_URL');
+  assert.equal(metrics?.basicAuthUser, '$GRAFANA_CLOUD_METRICS_USER');
+  assert.equal(metrics?.secureJsonData.basicAuthPassword, '$GRAFANA_CLOUD_METRICS_READ_TOKEN');
+  assert.equal(metrics?.isDefault, true);
+});
+
 test('nightly load execution can target only configured staging URLs and never gets deploy credentials', async () => {
   const workflow = parse(
     await readFile(path.join(root, '.github/workflows/load-staging.yml'), 'utf8'),
