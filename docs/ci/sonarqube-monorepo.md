@@ -28,13 +28,17 @@ Run `pnpm coverage` and `pnpm test:ci:coverage` from the repository root. Expect
 - `packages/ui/coverage/lcov.info`
 - `coverage/scripts/lcov.info`
 
-The latest local reports aggregate to 913 covered of 1129 instrumented lines (80.87%). This is a local LCOV aggregate, **not** a Sonar new-code measurement or Quality Gate result. Sonar's imported coverage and gate must be confirmed on the real PR head.
+The earlier local reports aggregated to 913 covered of 1129 instrumented lines (80.87%). After adding subprocess tests that exercise the real CLI error handlers, `pnpm test:ci:coverage` passes 67/67 tests and reports 82.24% line coverage for its instrumented scripts. These are local measurements, **not** Sonar new-code measurements or Quality Gate approval. Sonar's imported coverage and gate must be confirmed on the new PR head.
 
 ## Latest real PR evidence
 
-Run `43917776461` (head `bd01bd9`) reached Sonar analysis and calculated a failed Quality Gate. Sonar reported 23.0% coverage on new code, C security rating, and D reliability rating; maintainability, duplication, and security-hotspot review passed. The workflow correctly failed `quality`, and `pr-report` correctly propagated that failure. The same run passed CodeQL, dependency audit, secret scan, and API/worker image builds and Trivy scans. Preview was skipped because PR #1 was Draft.
+Run `43975115316` (head `093d270`) passed per-commit validation, lint, typecheck, unit tests, API/worker integration tests, build, Playwright/axe, and LCOV generation. The scanner log confirms that it imported all seven LCOV reports. Sonar calculated a failed Quality Gate solely because new-code coverage was 79.2% (required 80%). Reliability, security and maintainability were all A; duplication was 2.1% and reviewed hotspots were 100%. The public issues API returned no open bugs or vulnerabilities. CodeQL, dependency audit, secret scan, image builds and Trivy passed; `pr-report` correctly propagated the failed `quality` job. Preview remained skipped while PR #1 was Draft.
 
-That analysis identified two default-sort bugs, permission-scope findings in CI/preview workflows, an unguarded `workflow_run` telemetry job, and Git executable resolution through `PATH`. The current local changes correct those findings and add executable coverage for policy scripts. They are not considered resolved by Sonar until a new pushed head has a successful analysis and computed gate.
+The earlier run `43917776461` had reported 23.0% new-code coverage, C security and D reliability. Its default-sort, workflow-permission, telemetry-trust and Git-resolution findings are resolved in the real analysis on `093d270`. The next run must confirm that the additional CLI tests bring new-code coverage above the unchanged threshold.
+
+The scanner also reports that its current analysis-scope mode ignores `sonar.sources`, `sonar.tests` and `sonar.test.inclusions` and scans the whole repository. This explains why application-only coverage was insufficient. This correction keeps application, infrastructure and CI code in scope and adds executable tests; it does not exclude untested production files to pass the gate.
+
+GitHub's connected app returned `403 Resource not accessible by integration` for `main` branch protection and an empty public ruleset list. Classic branch protection cannot be inferred from the empty list. T031 and T033 remain pending until an administrator confirms the effective required checks and merge restrictions.
 
 ## Monorepo PR acceptance experiment
 

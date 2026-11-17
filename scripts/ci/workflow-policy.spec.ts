@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -47,6 +48,45 @@ interface Workflow {
 
 async function workflow(file: string) {
   return parse(await readFile(file, 'utf8')) as Workflow;
+}
+
+const unconfiguredCommands = [
+  ['scripts/ci/detect-affected.ts', /BASE_SHA and HEAD_SHA are required/],
+  ['scripts/ci/validate-commit-range.ts', /full commit SHAs/],
+  ['scripts/ci/report-workflow-run.mjs', /token, repository, run ID and step summary are required/],
+  [
+    'scripts/deploy/require-pr-checks.mjs',
+    /GITHUB_TOKEN, GITHUB_REPOSITORY, and PR_HEAD_SHA are required/,
+  ],
+  ['scripts/telemetry/publish.ts', /GITHUB_EVENT_PATH is required/],
+] as const;
+
+for (const [script, expectedError] of unconfiguredCommands) {
+  test(`${script} exits unsuccessfully when its required CI metadata is missing`, () => {
+    const environment = { ...process.env };
+    for (const name of [
+      'BASE_SHA',
+      'HEAD_SHA',
+      'GITHUB_TOKEN',
+      'GITHUB_REPOSITORY',
+      'GITHUB_RUN_ID',
+      'GITHUB_STEP_SUMMARY',
+      'GITHUB_EVENT_PATH',
+      'PR_HEAD_SHA',
+    ]) {
+      delete environment[name];
+    }
+    const result = spawnSync(process.execPath, ['--import', 'tsx', path.join(root, script)], {
+      cwd: root,
+      env: environment,
+      encoding: 'utf8',
+      timeout: 20_000,
+    });
+    assert.ifError(result.error);
+    assert.equal(result.signal, null);
+    assert.equal(result.status, 1, `${script} must block CI when configuration is missing`);
+    assert.match(result.stderr, expectedError);
+  });
 }
 
 test('PR CI targets main, uses a stable concurrency group and read-only default permissions', async () => {

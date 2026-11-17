@@ -307,3 +307,29 @@ npm exec --yes --package=node@24 --package=pnpm@10.12.4 -- pnpm build
 - Current local uncommitted correction: scale the validator budget by 15 minutes for each block of 10 commits (`ceil(commitCount / 10)`). This retains the 15-minute SC-001 budget for PRs of up to 10 commits. Local `test:ci:coverage` now passes 62/62; targeted ESLint, Prettier and `git diff --check` pass.
 - Next: commit and push the dynamic budget, then inspect the new PR run. Confirm that CI proceeds through the aggregate checks, generates seven LCOV reports and runs Sonar analysis with a numeric, passing Quality Gate. Keep PR #1 Draft unless every required check passes.
 - PR: https://github.com/magomez36/cafeteria_Arquitectura-de-Software/pull/1 . Run 43917776461 remains the only real Sonar analysis in evidence so far (failed: 23.0% new-code coverage, C Security, D Reliability). `SONAR_TOKEN`, `SONAR_PROJECT_KEY` and `SONAR_ORGANIZATION` are referenced only through configured GitHub Actions secrets/variables; never print or request their values.
+
+## 17. Pausa temporal solicitada por el lider — 2026-11-16
+
+Esta seccion actualiza el punto de reanudacion de las secciones anteriores. El usuario solicita pausar durante aproximadamente tres horas. No continuar implementando hasta que indique reanudar.
+
+- Rama comprobada: `feature/spec-1`. HEAD local y `origin/feature/spec-1`: `093d2704637aeba1a2e1f319354099260bc79841`.
+- Cambios de este bloque registrados y publicados: `c985899` (correcciones Sonar y cobertura de scripts), `6012c33` (timeout del job quality de 30 minutos), `093d270` (presupuesto del validador por bloques de diez commits y evidencia). Los tres commits pasaron los hooks.
+- La correccion que la seccion 16 describe como local ya fue publicada en `093d270`. No volver a implementarla ni crear otro commit con el mismo cambio.
+- Antes de actualizar este checkpoint, `git status --short` solo mostraba `?? docs/progress/recovery-2026-11-16/`; `git diff --check` termino sin errores. El respaldo permanece intacto y fuera de los commits. Este checkpoint queda modificado solo en local por el registro de la pausa.
+- Ultima comprobacion de GitHub Actions: run `43975115316`, SHA `093d270`, job `quality` en curso en `Validate commit range`; LCOV y Sonar pendientes. CodeQL, dependency-audit y secret-scan aprobaron en ese run. No atribuirle todavia un Quality Gate ni un resultado global.
+- PR #1 permanece Draft en la ultima consulta, abierto y sin merge. GitHub Actions puede continuar durante la pausa; consultar el resultado al volver sin relanzarlo primero.
+- Ultima verificacion local: `pnpm test:ci:coverage` 62/62; ESLint dirigido, Prettier y `git diff --check` aprobados. Las evidencias previas de lint, typecheck, build, cobertura de workspaces y auditoria se conservan en las secciones anteriores; no se repitieron suites para esta pausa.
+- Docker local y la proteccion efectiva de `main` conservan sus verificaciones pendientes. T031 no esta cerrada; no marcar Sonar aprobado sin un analisis real y Quality Gate calculado para el SHA actual.
+- Proximo paso concreto: leer esta seccion, comprobar Git y consultar jobs/logs de https://github.com/magomez36/cafeteria_Arquitectura-de-Software/actions/runs/43975115316 . Si finalizo, identificar el resultado de T027 y del analisis Sonar/LCOV antes de corregir o reejecutar. Mantener la prioridad del PR #1; no avanzar Vercel, Render o Grafana.
+- No se realizaron commits, push, pruebas nuevas, merge ni despliegues para preparar esta pausa. No hay agentes secundarios activos.
+
+## 18. Reanudacion: cierre del deficit de cobertura
+
+- El usuario revoco la pausa e indico continuar. Rama y HEAD local/remoto comprobados: `feature/spec-1`, `093d2704637aeba1a2e1f319354099260bc79841`. Se preserva la seccion 17 y el respaldo local sin seguimiento.
+- Run `43975115316`: T027 aprobo el rango completo; lint, typecheck, unitarios, integraciones API/worker, health, build, Playwright/axe y generacion de LCOV aprobaron. CodeQL, dependency-audit, secret-scan, imagenes y Trivy aprobaron. `pr-report` propago correctamente el fallo de `quality`.
+- Sonar importo los siete LCOV y calculo un gate fallido exclusivamente por cobertura nueva de 79.2% frente a 80%. Fiabilidad, seguridad y mantenibilidad: A; duplicacion: 2.1%; hotspots revisados: 100%; API publica sin bugs/vulnerabilidades abiertos. Los hallazgos anteriores estan corregidos en el analisis real.
+- Cambio de este bloque: cinco pruebas de subprocess en `scripts/ci/workflow-policy.spec.ts` que ejecutan las CLI reales sin metadatos requeridos y verifican codigo de salida 1 y diagnostico. No cambian implementacion ni umbrales.
+- Validacion local: `pnpm test:ci:coverage` 67/67, cobertura de lineas de scripts 82.24%; ESLint dirigido y formato aprobados. `pnpm exec turbo run lint typecheck test build` aprobo 24/24 tareas (18 resultados cacheados sin cambios, seis suites de unitarios ejecutadas). Esto no es evidencia anticipada de Sonar para un SHA nuevo.
+- Docker Desktop sigue sin daemon disponible localmente; se conserva evidencia de las integraciones remotas aprobadas. No se repitieron integraciones locales dependientes de Docker.
+- GitHub app: lectura de `main/protection` devuelve 403 `Resource not accessible by integration`; lista publica de rulesets vacia. No se puede concluir que no exista proteccion clasica. T031/T033 siguen pendientes de confirmar reglas efectivas; el PR sigue Draft y mergeable.
+- Pendiente inmediato: publicar las pruebas/documentacion validadas y consultar el nuevo run. No relanzar el antiguo SHA para probar codigo que todavia no contiene. No excluir fuentes ni reducir el 80%; no marcar T031 completa sin gate calculado y configuracion requerida verificada.
