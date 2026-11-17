@@ -1,19 +1,41 @@
 # `main` branch protection
 
-## Required repository rules
+## Activation evidence
 
-The repository administrator must protect `main` with these settings:
+The owner confirmed activation for the final Spec #1 baseline. On 2026-11-17 UTC, `GET /repos/magomez36/cafeteria_Arquitectura-de-Software/branches/main` independently returned:
 
-- Require a pull request before merging, with at least one approving review.
-- Dismiss stale approvals when new commits are pushed; require approval of the most recent reviewable push when available.
-- Require all conversations to be resolved.
-- Require the stable checks `quality`, `security / codeql`, `security / dependency-audit`, `security / secret-scan`, `images`, and `pr-report`.
-- Require branches to be up to date before merging and require linear history.
-- Block force pushes and branch deletion; do not grant bypass to normal contributors.
-- Keep `feature/spec-1` as the only active implementation branch until the platform baseline is accepted; create module branches from the merged baseline only after the leader's integration decision.
+- `protected: true` and `protection.enabled: true`;
+- `required_status_checks.enforcement_level: everyone`;
+- the six required checks below.
 
-## Activation and verification
+| Exact required context        | GitHub app ID | Relationship to CI                             |
+| ----------------------------- | ------------- | ---------------------------------------------- |
+| `quality`                     | 15368         | Includes the blocking Sonar scan/Quality Gate. |
+| `CodeQL`                      | 57789         | Native CodeQL analysis check.                  |
+| `security / dependency-audit` | 15368         | High/critical dependency findings block.       |
+| `security / secret-scan`      | 15368         | Secret findings block.                         |
+| `images`                      | 15368         | Builds and Trivy scans API/worker images.      |
+| `pr-report`                   | 15368         | Propagates failed or cancelled jobs.           |
 
-Activation is external and requires repository administrator access. In GitHub, open **Settings → Rules → Rulesets** (or **Branches → Add branch protection rule**), target `main`, enable the requirements above, and select the check names from a successful PR run. GitHub may only offer a check after it has appeared once; do not guess a different status name. If GitHub presents security checks with a different stable display name, record that exact name and update this document and `scripts/ci/workflow-policy.spec.ts` together in one reviewed change.
+The workflow job `security / codeql` also succeeds, but the active rule selects the native **`CodeQL`** check. Preview's existing helper checks the workflow job; this documentation change does not modify it. The native `SonarCloud Code Analysis` check also passes; Sonar failure blocks through required `quality` even though the native Sonar context is not separately listed in the rule.
 
-After saving, verify through a disposable test PR that a direct push is rejected, an unapproved PR cannot merge, a failed required check blocks merge, and a linear-history merge succeeds. Do not use the open Draft PR as a destructive test. Remote rules are not yet confirmed from this workspace and remain pending until the administrator records the settings and test evidence here.
+These checks passed on `341cc4a` ([run 44004176940](https://github.com/magomez36/cafeteria_Arquitectura-de-Software/actions/runs/44004176940)). They must pass again on the documentation commit. PR #1 remains Draft and has no human approval recorded in the reviewed evidence.
+
+The administrative protection endpoint returns `403 Resource not accessible by integration`. An empty public ruleset list does not invalidate enabled classic branch protection. The public branch response does not expose the approval count, linear-history requirement or bypass settings; the owner must confirm these details rather than the agent inferring them.
+
+## Required policy and remaining verification
+
+The administrator should verify the active rule includes:
+
+- Pull request required, at least one approving review; dismiss stale approvals and require approval of the latest reviewable push where available.
+- All conversations resolved, all six exact required checks successful and the branch up to date.
+- Linear history and the agreed rebase integration method.
+- No direct-push/bypass exception for normal contributors; force pushes and deletion blocked.
+
+Record an owner settings export or redacted screenshot of these rule details. No credential or token is needed. T033 remains partial until all required settings are evidenced. T031's real failed and successful gates are recorded, but a failed required gate under the active rule has not yet been tested. T034's remaining negative scenarios are also open.
+
+Enforcement experiments need a separate authorized disposable PR. Do not attempt a direct push, forced merge or destructive test against `main` or PR #1 merely to collect evidence. No such experiment was run during documentation closure.
+
+## Preparing the baseline review
+
+After the documentation SHA has green required checks, PR #1 is technically ready to leave Draft for a colleague's review. Ready for review is not merge approval or completion of all Spec #1 tasks. Obtain the required human approval, confirm the rule details above and record acceptance gaps before any authorized merge. Keep `feature/spec-1` as the only implementation branch until integration; colleagues create `feature/spec-2`, `feature/spec-3` and `feature/spec-5` from the accepted, updated `main` afterwards.
