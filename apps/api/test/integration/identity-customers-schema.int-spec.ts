@@ -77,7 +77,7 @@ describe('identity and customers migrations on a fresh database', () => {
       await client.end();
     }
 
-    await run('down', 2);
+    await run('down', 3);
     const after = new Client({ connectionString: databaseUrl });
     await after.connect();
     try {

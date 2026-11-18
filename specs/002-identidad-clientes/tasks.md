@@ -29,12 +29,12 @@
 
 ## Fase 3: US2 — Roles y MFA (P1)
 
-- [ ] T020 [US2] TOTP RFC 6238 con `node:crypto` + vectores de prueba del RFC — `identity/domain/totp.ts`
-- [ ] T021 [US2] Guard de sesión y guard de rol, denegación por defecto, evento en 403 (FR-007)
-- [ ] T022 [US2] Enrolamiento y verificación MFA; personal sin MFA solo puede enrolar (FR-008)
-- [ ] T023 [US2] Alta de personal por admin con invitación; desactivar/reactivar y revocar sesiones (FR-009)
-- [ ] T024 [US2] Restablecimiento de MFA por admin con registro (caso límite del spec)
-- [ ] T025 [US2] Tests de permisos negativos 401/403 por rol
+- [x] T020 [US2] TOTP RFC 6238 con `node:crypto` + vectores de prueba del RFC — `identity/domain/totp.ts`
+- [x] T021 [US2] Guard de sesión y guard de rol, denegación por defecto, evento en 403 (FR-007)
+- [x] T022 [US2] Enrolamiento y verificación MFA; personal sin MFA solo puede enrolar (FR-008)
+- [x] T023 [US2] Alta de personal por admin con invitación; desactivar/reactivar y revocar sesiones (FR-009)
+- [x] T024 [US2] Restablecimiento de MFA por admin con registro (caso límite del spec)
+- [x] T025 [US2] Tests de permisos negativos 401/403 por rol
 - [ ] T026 [US2] Web: `/personal/ingresar`, enrolamiento MFA, `/admin/personal`
 
 ## Fase 4: US3 — Perfil e historial (P2)
