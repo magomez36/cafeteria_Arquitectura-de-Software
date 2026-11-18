@@ -21,6 +21,26 @@ test('accepts the exact required checks only when all are completed successfully
   assert.match(result, /All required checks passed/);
 });
 
+test('permits an inapplicable image job only while the security and aggregate checks pass', async () => {
+  const options = (auditConclusion) => ({
+    token: 'test-token',
+    repository: 'cafeteria/example',
+    headSha: 'a'.repeat(40),
+    fetchChecks: async () =>
+      Response.json({
+        check_runs: successCheckRuns.map((check) => {
+          if (check.name === 'images') return { ...check, conclusion: 'skipped' };
+          if (check.name === 'security / dependency-audit')
+            return { ...check, conclusion: auditConclusion };
+          return check;
+        }),
+      }),
+  });
+  await assert.doesNotReject(verifyRequiredChecks(options('success')));
+  await assert.rejects(verifyRequiredChecks(options('skipped')), /dependency-audit=skipped/);
+  await assert.rejects(verifyRequiredChecks(options('failure')), /dependency-audit=failure/);
+});
+
 test('blocks completed failed checks and fails closed on API errors or missing identity', async () => {
   await assert.rejects(
     verifyRequiredChecks({

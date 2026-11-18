@@ -40,7 +40,14 @@ export async function verifyRequiredChecks({
     const missing = requiredChecks.filter((name) => !checks.has(name));
     const unfinished = requiredChecks.filter((name) => {
       const check = checks.get(name);
-      return check && (check.status !== 'completed' || check.conclusion !== 'success');
+      return (
+        check &&
+        (check.status !== 'completed' ||
+          !(
+            check.conclusion === 'success' ||
+            (name === 'images' && check.conclusion === 'skipped')
+          ))
+      );
     });
     const failed = unfinished.filter((name) => checks.get(name)?.status === 'completed');
 

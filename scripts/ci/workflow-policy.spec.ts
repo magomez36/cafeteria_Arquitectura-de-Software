@@ -11,6 +11,7 @@ const ciPath = path.join(root, '.github/workflows/ci.yml');
 const securityPath = path.join(root, '.github/workflows/security.yml');
 const previewPath = path.join(root, '.github/workflows/deploy-preview.yml');
 const publishPath = path.join(root, '.github/workflows/publish-images.yml');
+const stagingPath = path.join(root, '.github/workflows/deploy-staging.yml');
 const releasePleasePath = path.join(root, '.github/workflows/release-please.yml');
 const telemetryPath = path.join(root, '.github/workflows/telemetry.yml');
 const loadStagingPath = path.join(root, '.github/workflows/load-staging.yml');
@@ -37,6 +38,7 @@ interface Workflow {
     readonly pull_request?: { readonly branches?: string[]; readonly types?: string[] };
     readonly pull_request_target?: unknown;
     readonly workflow_call?: unknown;
+    readonly workflow_run?: { readonly workflows: string[]; readonly types: string[] };
   };
   readonly permissions?: Record<string, string>;
   readonly concurrency: {
@@ -106,6 +108,7 @@ test('PR CI targets main, uses a stable concurrency group and read-only default 
   assert.ok(ci.jobs.images);
   assert.deepEqual(ci.jobs.images.needs, ['quality', 'security']);
   assert.match(ci.jobs.images.if ?? '', /always\(\).*needs\.security\.result == 'success'/);
+  assert.match(ci.jobs.images.if ?? '', /needs\.quality\.result == 'success'/);
   assert.match(ci.jobs.images.if ?? '', /needs\.quality\.outputs\.api_changed == 'true'/);
   assert.match(ci.jobs.images.if ?? '', /needs\.quality\.outputs\.worker_changed == 'true'/);
   assert.equal(ci.jobs.security.permissions?.['security-events'], 'write');
@@ -257,10 +260,13 @@ test('GHCR publishes only merged PR images previously built and scanned by CI', 
       steps.indexOf('Push verified images and record immutable digests'),
   );
   const publishSource = await readFile(publishPath, 'utf8');
-  assert.match(publishSource, /--commit "\$SOURCE_SHA"/);
-  assert.match(publishSource, /verified-images-\$SOURCE_SHA/);
-  assert.match(publishSource, /\.sourceSha == \$sha/);
-  assert.match(publishSource, /image-digests\.txt/);
+  assert.match(publishSource, /-f head_sha="\$SOURCE_SHA"/);
+  assert.match(publishSource, /verified-images-\$SOURCE_SHA-\$VERIFIED_RUN_ATTEMPT/);
+  assert.match(publishSource, /verify-image-archive\.mjs/);
+  assert.match(publishSource, /actual_id.*expected_id/);
+  assert.match(publishSource, /image-digests\.json/);
+  assert.match(publishSource, /head\.repo\.full_name == github\.repository/);
+  assert.match(await readFile(ciPath, 'utf8'), /name: verified-images-.*github\.run_attempt/);
   assert.doesNotMatch(publishSource, /docker build/);
   assert.match(publishSource, /cancel-in-progress: false/);
 });
@@ -315,4 +321,19 @@ test('security scanning is part of the required PR workflow and image scans foll
     await readFile(path.join(root, 'scripts/ci/report-workflow-run.mjs'), 'utf8'),
     /durationMs/,
   );
+});
+
+test('staging prepares a manifest only from a successful same-repository publication with no provider credentials', async () => {
+  const staging = await workflow(stagingPath);
+  assert.deepEqual(staging.on.workflow_run, {
+    workflows: ['Publish verified images'],
+    types: ['completed'],
+  });
+  assert.deepEqual(staging.permissions, { actions: 'read', contents: 'read' });
+  assert.match(staging.jobs.prepare.if ?? '', /head_repository\.full_name == github\.repository/);
+  assert.match(staging.jobs.prepare.if ?? '', /conclusion == 'success'/);
+  assert.equal(staging.jobs.prepare.steps[0]?.with?.['persist-credentials'], false);
+  const source = await readFile(stagingPath, 'utf8');
+  assert.match(source, /staging-artifacts\.mjs/);
+  assert.doesNotMatch(source, /secrets\.|packages: write|pull_request_target/);
 });

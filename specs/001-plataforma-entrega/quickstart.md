@@ -69,6 +69,7 @@ pnpm build
 - En PR, frontend Vercel preview y backend preview (o staging compartido si el plan Render no habilita previews) usan solo datos de prueba.
 - En merge a `main`, GHCR publica imágenes por SHA/digest; Render Blueprint y Vercel Git tienen el auto deploy apagado; Actions promueve artefactos validados sin reconstruir.
 - Staging recibe el cambio y pasa smoke tests dentro de 20 minutos (SC-004). Si el deploy falla, mantiene la versión sana anterior y notifica.
+- Registrar el SHA, las URLs reales y los tiempos de cada etapa en [la plantilla de aceptación](../../docs/deploy/acceptance.md). El artefacto `staging-plan.json` verifica la selección de digests. La aceptación requiere smoke del despliegue en staging y evidencia en Grafana.
 - Release candidata espera aprobación humana; sin aprobación no inicia. Al aprobar, despliega backend primero y frontend después; migraciones predeploy fallidas cancelan la promoción.
 - Inyectar un fallo de smoke en entorno controlado: frontend y backend regresan a los artefactos previos en menos de cinco minutos (SC-005). Verificar que esos artefactos siguen retenidos.
 - Revertir un commit de staging y comprobar que el cambio atraviesa CI. Migraciones ya aplicadas se revierten con migración nueva; no con revert destructivo.

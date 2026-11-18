@@ -1,0 +1,54 @@
+# Provisioning template. Resolve the required values before submitting it to Render.
+services:
+  - name: cafeteria-api-staging
+    type: web
+    runtime: image
+    region: __RENDER_REGION__
+    plan: __RENDER_API_PLAN__
+    autoDeployTrigger: 'off'
+    image:
+      url: __API_IMAGE_DIGEST__
+      creds:
+        name: __RENDER_GHCR_CREDENTIAL__
+    healthCheckPath: /health
+    preDeployCommand: node apps/api/dist/database/migrate.js
+    envVars:
+      - key: PORT
+        value: '10000'
+      - key: API_PORT
+        value: '10000'
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cafeteria-postgres-staging
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          name: cafeteria-cache-staging
+          type: keyvalue
+          property: connectionString
+      - key: RABBITMQ_URL
+        sync: false
+  - name: cafeteria-worker-staging
+    type: worker
+    runtime: image
+    region: __RENDER_REGION__
+    plan: __RENDER_WORKER_PLAN__
+    autoDeployTrigger: 'off'
+    image:
+      url: __WORKER_IMAGE_DIGEST__
+      creds:
+        name: __RENDER_GHCR_CREDENTIAL__
+    envVars:
+      - key: RABBITMQ_URL
+        sync: false
+  - name: cafeteria-cache-staging
+    type: keyvalue
+    region: __RENDER_REGION__
+    plan: __RENDER_CACHE_PLAN__
+    ipAllowList: []
+databases:
+  - name: cafeteria-postgres-staging
+    region: __RENDER_REGION__
+    plan: __RENDER_POSTGRES_PLAN__
+    postgresMajorVersion: '17'
+    ipAllowList: []

@@ -116,7 +116,7 @@ jobs:
     name: images
     needs: [quality, security]
     if: >-
-      always() && needs.security.result == 'success' &&
+      always() && needs.quality.result == 'success' && needs.security.result == 'success' &&
       (needs.quality.outputs.api_changed == 'true' || needs.quality.outputs.worker_changed == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -125,6 +125,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Build API image
         if: needs.quality.outputs.api_changed == 'true'
         run: docker build --pull --tag cafeteria-api:${{ github.event.pull_request.head.sha }} --file apps/api/Dockerfile .
@@ -169,15 +171,27 @@ jobs:
           API_CHANGED: ${{ needs.quality.outputs.api_changed }}
           WORKER_CHANGED: ${{ needs.quality.outputs.worker_changed }}
           IMAGE_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          images=()
-          [[ "$API_CHANGED" == "true" ]] && images+=("api")
-          [[ "$WORKER_CHANGED" == "true" ]] && images+=("worker")
-          jq -n --arg sha "$IMAGE_SHA" --argjson images "$(printf '%s\n' "${images[@]}" | jq -R . | jq -s .)" '{sourceSha:$sha,images:$images}' > image-manifest.json
+          for component in api worker; do
+            case "$component" in
+              api) [[ "$API_CHANGED" == true ]] || continue ;;
+              worker) [[ "$WORKER_CHANGED" == true ]] || continue ;;
+            esac
+            id=$(docker image inspect --format '{{.Id}}' "cafeteria-$component:$IMAGE_SHA")
+            jq -nc --arg component "$component" --arg id "$id" '{component:$component,id:$id}'
+          done > image-identities.jsonl
+          archive_sha=$(sha256sum verified-images.tar | cut -d ' ' -f 1)
+          jq -n --arg repo "$GITHUB_REPOSITORY" --arg pr "$PR_NUMBER" \
+            --arg run "$GITHUB_RUN_ID" --arg attempt "$GITHUB_RUN_ATTEMPT" --arg sha "$IMAGE_SHA" \
+            --arg tree "$(git rev-parse 'HEAD^{tree}')" --arg archive "$archive_sha" \
+            --slurpfile images image-identities.jsonl \
+            '{version:1,repository:$repo,prNumber:$pr,runId:$run,runAttempt:$attempt,sourceSha:$sha,tree:$tree,archiveSha256:$archive,images:$images}' \
+            > image-manifest.json
       - name: Retain scanned image archive for post-merge promotion
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: verified-images-${{ github.event.pull_request.head.sha }}
+          name: verified-images-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
           path: |
             image-manifest.json
             verified-images.tar

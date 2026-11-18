@@ -1,0 +1,58 @@
+name: Prepare staging promotion
+
+on:
+  workflow_run:
+    workflows: [Publish verified images]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: staging-promotion-plan
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PUBLISH_RUN_ID: ${{ github.event.workflow_run.id }}
+      PUBLISH_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+    steps:
+      - name: Checkout trusted default branch for merged tree validation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate the immutable staging promotion input
+        id: plan
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          artifact=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$PUBLISH_RUN_ID/artifacts" --jq '.artifacts[] | select(.expired == false) | .name' |
+            awk -v attempt="$PUBLISH_RUN_ATTEMPT" '$0 ~ /^published-images-[0-9a-f]+-[0-9]+$/ && $0 ~ ("-" attempt "$")')
+          if [[ -z "$artifact" ]]; then
+            echo 'No registry manifest from this publication attempt. No staging promotion ran.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          [[ "$artifact" =~ ^published-images-[0-9a-f]{40}-[0-9]+$ ]]
+          gh run download "$PUBLISH_RUN_ID" --name "$artifact" --dir "$RUNNER_TEMP/published"
+          node scripts/deploy/staging-artifacts.mjs "$RUNNER_TEMP/published/image-digests.json" > staging-plan.json
+          echo 'prepared=true' >> "$GITHUB_OUTPUT"
+          echo 'Immutable staging input verified. Render and Vercel were not invoked.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain verified staging input
+        if: steps.plan.outputs.prepared == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: staging-plan-${{ github.event.workflow_run.id }}-${{ github.run_attempt }}
+          path: staging-plan.json
+          if-no-files-found: error
+          retention-days: 30
