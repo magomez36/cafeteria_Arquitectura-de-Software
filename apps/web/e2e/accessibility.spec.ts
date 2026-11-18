@@ -18,21 +18,35 @@ function contrastRatio(foreground: string, background: string): number {
   return (light! + 0.05) / (dark! + 0.05);
 }
 
-test('home has meaningful landmarks and no keyboard trap or unexpected focus target', async ({
+test('keyboard users can reveal the skip link, see its focus and reach the main landmark', async ({
   page,
 }) => {
   await page.goto('/');
-  await expect(page.getByRole('main')).toBeVisible();
+  const main = page.getByRole('main');
+  const skipLink = page.getByRole('link', { name: 'Saltar al contenido' });
+  await expect(main).toBeVisible();
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(skipLink).not.toBeInViewport();
   await page.keyboard.press('Tab');
-  const focusState = await page.evaluate(() => ({
-    focusInsideMain: Boolean(document.activeElement?.closest('main')),
-    focusableCount: document.querySelectorAll(
-      'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    ).length,
-  }));
-  expect(focusState.focusableCount).toBe(0);
-  expect(focusState.focusInsideMain).toBe(false);
+  await expect(skipLink).toBeFocused();
+  await expect(skipLink).toBeInViewport();
+  await expect(skipLink).toHaveCSS('outline-style', 'solid');
+  await expect(skipLink).toHaveCSS('outline-width', '3px');
+  const focusColors = await skipLink.evaluate((link) => {
+    const style = getComputedStyle(link);
+    return {
+      outline: style.outlineColor,
+      foreground: style.color,
+      background: style.backgroundColor,
+    };
+  });
+  expect(contrastRatio(focusColors.outline, focusColors.background)).toBeGreaterThanOrEqual(3);
+  expect(contrastRatio(focusColors.foreground, focusColors.background)).toBeGreaterThanOrEqual(7);
+  await page.keyboard.press('Enter');
+  await expect(main).toBeFocused();
+  await expect(page).toHaveURL(/#contenido$/);
+  await page.keyboard.press('Shift+Tab');
+  await expect(skipLink).toBeFocused();
 });
 
 test('visible home text meets AAA contrast and reduced-motion preference is respected', async ({

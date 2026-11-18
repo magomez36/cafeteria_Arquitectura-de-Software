@@ -2,13 +2,11 @@
 
 ## Automated checks in the platform foundation
 
-`apps/web/e2e/accessibility.spec.ts` additionally checks the available page landmark/heading, absence of an unexpected keyboard focus target, a computed text contrast ratio of at least 7:1, and the reduced-motion CSS preference. These browser checks do not replace the manual screen-reader checklist below.
+`apps/web/e2e/accessibility.spec.ts` checks the available page landmark and heading, the keyboard skip link, focus visibility and contrast, a computed text contrast ratio of at least 7:1, and the reduced-motion CSS preference.
 
-`apps/web/e2e/platform.spec.ts` checks the initial page with axe-core against WCAG 2.1 A/AA rules and verifies the `/health` HTTP contract. It also confirms the page heading is exposed as a level-one heading. The initial local run on 2026-11-15 passed both E2E tests with no axe violations.
+`apps/web/e2e/staging-smoke.spec.ts` checks the initial page with axe-core tags for WCAG 2.0 and 2.1 A/AA/AAA and verifies the `/health` HTTP contract without following redirects.
 
-Local rerun on 2026-11-16: `pnpm --filter @cafeteria/web test:e2e` passed 4/4 tests, including axe, landmark/heading, AAA contrast, reduced motion, keyboard focus behavior, and the `/health` HTTP contract.
-
-The initial page has no interactive controls, so keyboard focus order and visible focus are not meaningfully exercised yet. The shared UI token stylesheet includes a `prefers-reduced-motion` rule; automated checks for interactive reduced-motion behavior belong with the screen that introduces motion.
+Local Chromium on Windows on 2026-11-17 passed 4/4 tests, including axe, Tab → Enter → Shift+Tab through the skip link and main content, focus and text contrast, reduced motion, and the API smoke test.
 
 ## Manual assistive-technology checks
 
