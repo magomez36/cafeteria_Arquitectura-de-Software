@@ -43,6 +43,11 @@ export function resolveTimeZone(raw: string | undefined = process.env.CAFETERIA_
   }
 }
 
+/** Advertencia mostrada al administrador tras restaurar (decisión de producto: ver research.md). */
+export const RESTORE_WARNING =
+  'La versión restaurada ya está publicada, pero el borrador y los productos conservan sus valores actuales. ' +
+  'Si publica el borrador después, volverá a publicar esos valores y reemplazará el contenido restaurado.';
+
 @Injectable()
 export class CatalogService {
   readonly timeZone = resolveTimeZone();
@@ -171,7 +176,7 @@ export class CatalogService {
   ) {
     const result = await this.repo.restore(menuId, versionNumber, ifMatch, actorId);
     await this.cache.invalidate();
-    return result;
+    return { ...result, warning: RESTORE_WARNING };
   }
   async retire(menuId: string, ifMatch: string | string[] | undefined, actorId: string) {
     await this.repo.retire(menuId, ifMatch, actorId);

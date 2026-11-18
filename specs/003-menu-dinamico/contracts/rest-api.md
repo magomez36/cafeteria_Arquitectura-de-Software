@@ -33,3 +33,11 @@ trazas). Códigos: `validation_failed` 422, `unauthenticated` 401, `forbidden` 4
 | PATCH           | `/admin/products/:id/availability` `{ availability?, stockQuantity? }`                      | `catalog.availability.write` |
 
 PATCH de disponibilidad rechaza (422) cualquier otro campo, de modo que personal no puede tocar precio.
+
+## Restaurar una versión: advertencia al administrador
+
+`POST /admin/menus/:id/versions/:n/restore` responde `201` con `{ versionNumber, ..., warning }`. La restauración publica
+el contenido de la versión elegida como versión N+1, pero **no modifica el borrador ni los productos compartidos**.
+`warning` debe mostrarse tal cual en la UI de administración: si después se publica el borrador, se vuelven a publicar
+los valores actuales y se reemplaza el contenido restaurado (cubierto en `tests/catalog.http.spec.ts`: restaurar v1 ⇒ v3 a 250;
+publicar el borrador ⇒ v4 a 300).

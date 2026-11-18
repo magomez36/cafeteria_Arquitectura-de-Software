@@ -315,6 +315,21 @@ describe('Catálogo vía HTTP (Postgres + Redis reales)', () => {
       const after = await api('GET', `/admin/menus/${menuId}/versions`, { actor: 'admin' });
       expect(after.body.versions).toHaveLength(3);
       expect(after.body.versions[0].restoredFromVersion).toBe(1);
+
+      // Advertencia al administrador y efecto de publicar el borrador después de restaurar
+      expect(restored.body.warning).toMatch(/reemplazará el contenido restaurado/);
+      const draftEtag = (
+        await api('GET', `/admin/menus/${menuId}`, { actor: 'admin' })
+      ).headers.get('etag')!;
+      const republished = await api('POST', `/admin/menus/${menuId}/publish`, {
+        actor: 'admin',
+        ifMatch: draftEtag,
+      });
+      expect(republished.status).toBe(201);
+      expect(republished.body.versionNumber).toBe(4);
+      expect((await publicProducts()).find((p) => p.name === 'Mocha').unitPrice.amountMinor).toBe(
+        300,
+      );
     });
 
     it('contrato para pedidos: el producto expone precio base y versión de la que sale', async () => {

@@ -33,7 +33,7 @@ Fecha de ejecución: 2026-11-17. Todo lo de abajo se ejecutó en esta copia de t
 
 ## Decisiones de implementación que conviene revisar
 
-1. **Restaurar no modifica el borrador**: crea la versión N+1 con el contenido de la versión elegida; los productos y el borrador conservan sus valores actuales. Si alguien publica el borrador después, vuelve a publicar los valores nuevos. (Alternativa: restaurar también el borrador, pero afectaría a productos compartidos entre menús.)
+1. **Restaurar no modifica el borrador** (decisión confirmada por el líder; la respuesta incluye `warning` y el efecto de publicar el borrador después está probado): crea la versión N+1 con el contenido de la versión elegida; los productos y el borrador conservan sus valores actuales. Si alguien publica el borrador después, vuelve a publicar los valores nuevos. (Alternativa: restaurar también el borrador, pero afectaría a productos compartidos entre menús.)
 2. **`Money` local**: la API no resuelve `@cafeteria/contracts` (CJS vs `exports` ESM sin mapeo en `tsconfig`/jest). Se pidió al líder el mapeo (contracts/shared-contracts-proposal.md §0).
 3. **Nombres de rol `admin`/`staff`**: supuesto a confirmar con Integrante 2.
 4. **Lista de alérgenos**: pendiente de validar con la normativa ecuatoriana de etiquetado.
