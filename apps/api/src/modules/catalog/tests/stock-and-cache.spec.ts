@@ -262,9 +262,9 @@ describe('T051 descuento de existencias y T015 caché/Redis (Postgres + Redis re
       // ...pero el nombre sale del snapshot publicado, así que usamos disponibilidad (capa en vivo).
       await db.query("UPDATE catalog.products SET availability = 'sold_out' WHERE id = $1", [id]);
       await new Promise((r) => setTimeout(r, 5500));
+      expect(await probe.exists(watched)).toBe(0); // la clave expiró sola (TTL), antes de volver a leer
       const after = (await publicProducts()).products.find((p) => p.productId === id);
       expect(after.availability).toBe('sold_out'); // tras el TTL se ve aunque no hubo invalidación
-      expect(await probe.exists(watched)).toBe(0); // la clave original expiró
     });
 
     it('con Redis caído la lectura pública sigue respondiendo desde Postgres (degradación)', async () => {
