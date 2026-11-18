@@ -68,10 +68,20 @@ export class PublicCache {
   }
 
   async close(): Promise<void> {
+    const client = this.client;
+    if (!client) return;
     try {
-      if (this.client?.isOpen) await this.client.quit();
+      // Si Redis dejó de responder, QUIT nunca terminaría: se acota y se destruye el socket.
+      await Promise.race([
+        client.quit(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 1000).unref()),
+      ]);
     } catch {
-      // nada que limpiar
+      try {
+        client.destroy();
+      } catch {
+        // ya estaba cerrado
+      }
     }
   }
 }
