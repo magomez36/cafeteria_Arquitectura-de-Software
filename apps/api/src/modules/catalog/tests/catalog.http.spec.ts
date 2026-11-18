@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { runner } from 'node-pg-migrate';
+import { Client } from 'pg';
 import { GenericContainer, type StartedTestContainer } from 'testcontainers';
 import { CatalogModule } from '../catalog.module';
 import { localTime } from '../domain/schedule';
@@ -459,6 +460,55 @@ describe('Catálogo vía HTTP (Postgres + Redis reales)', () => {
       expect(menu.availability.availableNow).toBe(false);
       expect(menu.availability.nextAvailableAt).toEqual(expect.any(String));
       expect(menu.categories[0].products[0].purchasable).toBe(false);
+    });
+  });
+
+  describe('retirada y auditoría', () => {
+    it('retirar un menú lo quita de la tienda pero conserva sus versiones', async () => {
+      const { menuId, etag } = await seedMenu('Menú a retirar', productBody({ name: 'Efímero' }));
+      await api('POST', `/admin/menus/${menuId}/publish`, { actor: 'admin', ifMatch: etag });
+      expect((await publicProducts()).map((p) => p.name)).toContain('Efímero');
+      const current = await api('GET', `/admin/menus/${menuId}`, { actor: 'admin' });
+      const retired = await api('POST', `/admin/menus/${menuId}/retire`, {
+        actor: 'admin',
+        ifMatch: current.headers.get('etag')!,
+      });
+      expect(retired.status).toBe(204);
+      expect((await publicProducts()).map((p) => p.name)).not.toContain('Efímero');
+      const versions = await api('GET', `/admin/menus/${menuId}/versions`, { actor: 'admin' });
+      expect(versions.body.versions).toHaveLength(1);
+    });
+
+    it('los cambios de precio y de disponibilidad quedan en el registro de auditoría con actor y valores (FR-012)', async () => {
+      const { productId } = await seedMenu('Menú auditoría', productBody({ name: 'Auditado' }));
+      const rows = (await api('GET', '/admin/products', { actor: 'admin' })).body.products;
+      const rev = rows.find((p: any) => p.productId === productId).revision;
+      await api('PUT', `/admin/products/${productId}`, {
+        actor: 'admin-2',
+        ifMatch: `W/"${rev}"`,
+        body: productBody({ name: 'Auditado', priceMinor: 400 }),
+      });
+      await api('PATCH', `/admin/products/${productId}/availability`, {
+        actor: 'staff',
+        body: { availability: 'sold_out' },
+      });
+      const db = new Client({ connectionString: process.env.DATABASE_URL });
+      await db.connect();
+      try {
+        const { rows: log } = await db.query(
+          "SELECT action, actor_id, changes FROM catalog.audit_log WHERE entity = 'product' AND entity_id = $1 ORDER BY id",
+          [productId],
+        );
+        expect(log.map((r) => [r.action, r.actor_id])).toEqual([
+          ['product_created', 'admin-1'],
+          ['product_updated', 'admin-2'],
+          ['availability_changed', 'staff-1'],
+        ]);
+        expect(log[1].changes).toEqual({ priceMinor: { from: 250, to: 400 } });
+        expect(JSON.stringify(log)).not.toMatch(/@|password|email/i);
+      } finally {
+        await db.end();
+      }
     });
   });
 
