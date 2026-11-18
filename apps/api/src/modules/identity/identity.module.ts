@@ -18,6 +18,8 @@ import {
 } from './infrastructure/pg-repositories';
 import { RedisRateLimiter, RedisSessionStore } from './infrastructure/redis-adapters';
 import { SmtpEmail } from './infrastructure/smtp-email';
+import { AUTHENTICATION_PORT } from './authentication/authentication.port';
+import { IdentityAuthenticationAdapter } from './authentication/identity-authentication.adapter';
 
 const DEV_PII_KEY = Buffer.alloc(32, 'identity-dev-only-key').toString('base64');
 
@@ -80,7 +82,9 @@ function piiKey(): string {
     },
     ErasureConsumer,
     AuthGuard,
+    IdentityAuthenticationAdapter,
+    { provide: AUTHENTICATION_PORT, useExisting: IdentityAuthenticationAdapter },
   ],
-  exports: [],
+  exports: [AUTHENTICATION_PORT],
 })
 export class IdentityModule {}
