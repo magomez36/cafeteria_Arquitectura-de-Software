@@ -4,10 +4,10 @@
 
 ## Fase 1: Fundaciones (bloquean todas las historias)
 
-- [ ] T001 [US1] Utilidad Argon2id (hash/verify) con `node:crypto` — `apps/api/src/modules/identity/infrastructure/password-hasher.ts` + spec
-- [ ] T002 [P] [US1] Política de contraseña: ≥ 12 caracteres y lista local de filtradas (FR-004) — `identity/domain/password-policy.ts` + spec
-- [ ] T003 [P] [US1] Generador y hash de tokens de un solo uso con TTL — `identity/domain/one-time-token.ts` + spec
-- [ ] T004 [P] [US1] Cifrado AES-256-GCM de PII — `identity/infrastructure/pii-cipher.ts` + spec
+- [x] T001 [US1] Utilidad Argon2id (hash/verify) con `node:crypto` — `apps/api/src/modules/identity/infrastructure/password-hasher.ts` + spec
+- [x] T002 [P] [US1] Política de contraseña: ≥ 12 caracteres y lista local de filtradas (FR-004) — `identity/domain/password-policy.ts` + spec
+- [x] T003 [P] [US1] Generador y hash de tokens de un solo uso con TTL — `identity/domain/one-time-token.ts` + spec
+- [x] T004 [P] [US1] Cifrado AES-256-GCM de PII — `identity/infrastructure/pii-cipher.ts` + spec
 - [ ] T005 [US1] Migración esquema `identity` (accounts, one_time_tokens, security_events) — `identity/migrations/<UTC>_identity_schema.ts`
 - [ ] T006 [US1] Migración esquema `customers` (customers, consents, rights_requests, data_inventory) — `customers/migrations/<UTC>_customers_schema.ts`
 - [ ] T007 [US1] Prueba de migraciones desde BD nueva (Testcontainers) — `identity/tests/migrations.spec.ts`
