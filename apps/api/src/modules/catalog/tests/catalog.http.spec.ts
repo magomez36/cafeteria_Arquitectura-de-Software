@@ -578,6 +578,13 @@ describe('Catálogo vía HTTP (Postgres + Redis reales)', () => {
         body: { availability: 'available' },
       });
       expect(bad.status).toBe(422);
+
+      // El personal puede listar productos (para gestionar existencias) pero no editarlos
+      const list = await api('GET', '/admin/products', { actor: 'staff' });
+      expect(list.status).toBe(200);
+      expect(list.body.products.find((p: any) => p.productId === productId).stockQuantity).toBe(0);
+      expect((await api('GET', '/admin/menus', { actor: 'staff' })).status).toBe(403);
+      expect((await api('GET', '/admin/products')).status).toBe(401);
     });
 
     it('un cliente (sin rol de personal) no puede cambiar disponibilidad', async () => {

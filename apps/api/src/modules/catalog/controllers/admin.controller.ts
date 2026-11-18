@@ -198,9 +198,10 @@ export class AdminController {
 
   // ----- Productos -----
 
+  /** Lectura para quien gestiona la disponibilidad (personal y admin): necesita ver existencias. */
   @Get('products')
   async listProducts(@Headers() h: RequestHeaders) {
-    await this.auth(h, 'catalog.menu.write');
+    await this.auth(h, 'catalog.availability.write');
     return { products: await this.catalog.listProducts() };
   }
 
