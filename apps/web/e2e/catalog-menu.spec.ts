@@ -80,6 +80,7 @@ const menus = [
 ];
 
 let server: Server;
+let mode: 'ok' | 'empty' | 'error' = 'ok';
 
 test.describe('menú público', () => {
   // Un único worker: el stub de la API escucha en un puerto fijo.
@@ -95,6 +96,10 @@ test.describe('menú público', () => {
       const url = new URL(req.url ?? '/', 'http://stub');
       if (url.pathname !== '/api/v1/catalog/menus') {
         res.writeHead(404).end();
+        return;
+      }
+      if (mode === 'error') {
+        res.writeHead(503).end();
         return;
       }
       const exclude = (url.searchParams.get('excludeAllergens') ?? '').split(',').filter(Boolean);
@@ -113,7 +118,7 @@ test.describe('menú público', () => {
           generatedAt: new Date().toISOString(),
           timezone: 'America/Guayaquil',
           allergens,
-          menus: filtered,
+          menus: mode === 'empty' ? [] : filtered,
         }),
       );
     });
@@ -170,6 +175,38 @@ test.describe('menú público', () => {
     await expect(page.getByRole('heading', { name: 'Té verde' })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: 'Leche y lácteos' })).toBeChecked();
     await expect(page.getByRole('link', { name: 'Quitar filtro' })).toBeVisible();
+  });
+
+  test('estado vacío: avisa que no hay menú publicado, sin errores', async ({ page }) => {
+    mode = 'empty';
+    try {
+      // La web cachea la respuesta 3 s (revalidate), así que se recarga hasta ver el cambio (<10 s, SC-002).
+      await expect(async () => {
+        await page.goto('/menu');
+        await expect(
+          page.getByRole('status').filter({ hasText: 'Todavía no hay un menú publicado' }),
+        ).toBeVisible({ timeout: 800 });
+      }).toPass({ timeout: 10_000 });
+      await expect(page.getByRole('heading', { name: 'Capuchino' })).toHaveCount(0);
+    } finally {
+      mode = 'ok';
+    }
+  });
+
+  test('estado de error: mensaje accesible cuando la API falla', async ({ page }) => {
+    mode = 'error';
+    try {
+      // La web cachea la respuesta 3 s (revalidate), así que se recarga hasta ver el cambio (<10 s, SC-002).
+      await expect(async () => {
+        // Clave de caché sin historial: si hubiera una respuesta previa, Next sirve la antigua (stale) y no el error.
+        await page.goto('/menu?excluir=sesamo');
+        await expect(
+          page.getByRole('alert').filter({ hasText: 'No pudimos cargar el menú' }),
+        ).toBeVisible({ timeout: 800 });
+      }).toPass({ timeout: 10_000 });
+    } finally {
+      mode = 'ok';
+    }
   });
 
   test('el foco es visible en los controles del filtro', async ({ page }) => {
