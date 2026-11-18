@@ -68,8 +68,13 @@ tests/                      # unit + integration
 ```
 
 Web (`apps/web/src/features/catalog`, rutas `apps/web/src/app/menu/**` y `app/admin/catalogo/**`):
-`api-client`, componentes `MenuView`, `AllergenFilter`, `ProductCard`, `AvailabilityBadge`,
-editor admin y vista de historial. No se edita `layout.tsx` ni la navegación global.
+`api.ts`, componentes `MenuView`, `AllergenFilter`, `ProductCard`, `AvailabilityBadge`.
+Administración (`features/catalog/admin/`): `client.ts` (cliente de API desacoplado, `AdminCatalogClient`,
+mapea 401/403/404/409/422/428 a estados de UI), `session.ts` (reenvía solo la cookie/`Authorization` de la
+persona; nunca fabrica identidad), `forms.ts`/`outcome.ts` (lectura de formularios y estado de acciones),
+`actions.ts` (acciones de servidor), `components/` (`ActionForm`, `StateNotice`, `LoadFailure`, campos, historial).
+Páginas: `app/admin/catalogo/` (menús), `[menuId]` (editor, publicar, historial), `[menuId]/vista-previa`,
+`productos` (contenido y disponibilidad). No se edita `layout.tsx` ni la navegación global.
 
 ## Decisiones clave (detalle en research.md)
 
@@ -107,12 +112,12 @@ Ver [contracts/rest-api.md](contracts/rest-api.md). Modelo en [data-model.md](da
 
 ## Dependencias externas / stubs
 
-| Depende de                                         | Estado       | Tratamiento                                                                                                                                                             |
-| -------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Spec #2 Identity (roles `admin`/`staff`, guard)    | No integrado | Port + deny-by-default; tests con mock. **Pruebas de autorización efectiva pendientes.**                                                                                |
-| Spec #6 Orders (snapshot, decremento de stock)     | No existe    | Contrato propuesto (shared-contracts-proposal.md); método `applyConfirmedSale` interno probado sin Orders. SC-004/US3.2 **no** se declaran cumplidos extremo a extremo. |
-| Spec #4 Cart                                       | No existe    | Solo exponemos `available` y `ProductSummary`.                                                                                                                          |
-| Contratos compartidos / `.env.example` / manifests | Líder        | Parches propuestos, no aplicados.                                                                                                                                       |
+| Depende de                                         | Estado       | Tratamiento                                                                                                                                                                                                                                             |
+| -------------------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Spec #2 Identity (roles `admin`/`staff`, guard)    | No integrado | Port + deny-by-default; tests con mock. **Pruebas de autorización efectiva pendientes.**                                                                                                                                                                |
+| Spec #6 Orders (snapshot, decremento de stock)     | No existe    | Contrato propuesto (shared-contracts-proposal.md); método `applyConfirmedSale` implementado y probado de forma aislada (tabla `stock_consumptions` idempotente); sin verificar con Orders. SC-004/US3.2 **no** se declaran cumplidos extremo a extremo. |
+| Spec #4 Cart                                       | No existe    | Solo exponemos `available` y `ProductSummary`.                                                                                                                                                                                                          |
+| Contratos compartidos / `.env.example` / manifests | Líder        | Parches propuestos, no aplicados.                                                                                                                                                                                                                       |
 
 ## Estrategia de pruebas
 

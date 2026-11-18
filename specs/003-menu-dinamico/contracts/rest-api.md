@@ -29,7 +29,8 @@ trazas). Códigos: `validation_failed` 422, `unauthenticated` 401, `forbidden` 4
 | POST            | `/admin/menus/:id/retire`                                                                   | `catalog.menu.write`         |
 | GET             | `/admin/menus/:id/versions` (historial: quién, cuándo, `changes`)                           | `catalog.audit.read`         |
 | POST            | `/admin/menus/:id/versions/:n/restore`                                                      | `catalog.menu.write`         |
-| GET/POST/PUT    | `/admin/products[/:id]` (`If-Match`)                                                        | `catalog.menu.write`         |
+| GET             | `/admin/products`                                                                           | `catalog.availability.write` |
+| POST/PUT        | `/admin/products[/:id]` (`If-Match` en PUT)                                                 | `catalog.menu.write`         |
 | PATCH           | `/admin/products/:id/availability` `{ availability?, stockQuantity? }`                      | `catalog.availability.write` |
 
 PATCH de disponibilidad rechaza (422) cualquier otro campo, de modo que personal no puede tocar precio.

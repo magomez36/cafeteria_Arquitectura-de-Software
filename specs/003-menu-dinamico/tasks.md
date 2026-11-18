@@ -9,7 +9,7 @@ Leyenda: `[x]` hecho y verificado · `[~]` parcial (se indica qué falta) · `[ 
 ## Fase 1 — Setup
 
 - [x] T001 Jest descubre `catalog/**/*.spec.ts` (`pnpm --filter @cafeteria/api test`). Los `.gitkeep` se dejan: son del scaffolding del líder.
-- [x] T002 Migración `20261117150000_catalog-schema.ts` (esquema `catalog`, triggers de inmutabilidad, semilla de alérgenos). Verificado con Postgres real: `tests/schema.spec.ts` (7 pruebas). **No se probó `down`.**
+- [x] T002 Migraciones `20261117150000_catalog-schema.ts` y `20261118120000_catalog-stock-consumption.ts`. Verificado con Postgres real: `tests/schema.spec.ts` y `pnpm db:migrate` (2 migraciones, segunda ejecución sin cambios) sobre un Postgres 17 desechable. **No se probó `down`.**
 
 ## Fase 2 — Fundacional
 
@@ -18,15 +18,15 @@ Leyenda: `[x]` hecho y verificado · `[~]` parcial (se indica qué falta) · `[ 
 - [x] T012 [P] `domain/schedule.ts` + spec (bordes 07:00/11:00, zona horaria, cambio de día, fin de semana).
 - [x] T013 [P] `domain/authorization.ts` + spec (deny-by-default, personal vs. admin).
 - [x] T014 [P] `domain/revision.ts` + spec (428/409).
-- [~] T015 `infrastructure/database.ts`, `public-cache.ts`. Verificado con Redis real (invalidación por epoch visible en `catalog.http.spec.ts`). **Falta probar la degradación con Redis caído y el TTL de 5 s.**
+- [x] T015 `infrastructure/database.ts`, `public-cache.ts`. `tests/stock-and-cache.spec.ts`: TTL ≤ 5 s y expiración real de la clave; un cambio hecho sin invalidar se ve tras el TTL; con Redis detenido la lectura pública y las escrituras siguen funcionando desde Postgres (< 5 s). Se corrigió un cuelgue al cerrar con Redis caído. **No probado**: reconexión cuando Redis vuelve a estar disponible.
 
 ## Fase 3 — US1 (P1) Consultar el menú
 
 - [x] T020 [P] [US1] `domain/public-view.ts` + spec.
-- [x] T021 [US1] `controllers/public-menu.controller.ts`: `GET /menus`, `GET /products/:id`, cabecera de caché, validación de query (cubierto en `tests/catalog.http.spec.ts`).
+- [x] T021 [US1] `controllers/public-menu.controller.ts`: `GET /menus`, `GET /products/:id`, cabecera de caché, validación de query.
 - [x] T022 [US1] Integración Postgres+Redis: solo versiones publicadas; el borrador nunca aparece.
-- [x] T023 [P] [US1] Componentes `MenuView`, `AllergenFilter`, `ProductCard`, `AvailabilityBadge` + Vitest (`features/catalog/catalog.test.ts`).
-- [~] T024 [US1] Página `app/menu/page.tsx` + E2E Playwright/axe (`e2e/catalog-menu.spec.ts`). **Verificado contra una API stub**, no contra la API real. Los estados vacío/error/cargando existen pero **no tienen E2E**. Pendiente prueba manual con lector de pantalla.
+- [x] T023 [P] [US1] Componentes `MenuView`, `AllergenFilter`, `ProductCard`, `AvailabilityBadge` + Vitest.
+- [~] T024 [US1] Página `app/menu/page.tsx`. E2E Playwright/axe (WCAG 2.x A/AA/AAA incl. contraste 7:1), teclado, foco, **estado vacío y estado de error** contra una API stub; el estado de **carga** (`loading.tsx`) solo tiene prueba unitaria (`role="status"`). **Falta**: E2E contra la API real (la API real es deny-by-default para administrar, no se puede sembrar un menú sin Identity), prueba manual con lector de pantalla. Observación: ante un fallo de la API la página sigue sirviendo la última respuesta cacheada (stale) y solo muestra el error si no hay copia previa.
 
 ## Fase 4 — US2 (P1) Crear y publicar
 
@@ -34,31 +34,31 @@ Leyenda: `[x]` hecho y verificado · `[~]` parcial (se indica qué falta) · `[ 
 - [x] T031 [US2] Repositorio y casos de uso de borrador (menú, categorías, ítems, productos, horario) con `revision`.
 - [x] T032 [US2] Controlador admin + autorización en servidor: 401 por defecto, sin `x-role`, ninguna ruta admin pública; 403 al personal en rutas de contenido.
 - [x] T033 [US2] Publicar (transacción atómica) + preview; integración: bloqueo con detalle, publicación visible al instante.
-- [ ] T034 [US2] UI admin (editor, previsualización, publicación). **No iniciada; bloqueada**: las rutas admin responden 401 hasta que Spec #2 defina cómo la web reenvía la sesión a la API; sin eso la UI no se puede ejercitar de extremo a extremo.
-- [~] T035 [US2] SC-002: se midió publicar→visible = 21–25 ms en local (1 muestra, sin carga). **No es una medición representativa; SC-002 no se declara cumplido.**
+- [~] T034 [US2] UI admin: lista/alta de menús, editor (nombre, horario, categorías, productos), alta/edición de productos, vista previa y publicación (`app/admin/catalogo/**`, `features/catalog/admin/**`). Probada con Vitest (cliente, formularios, estados) y E2E contra API stub con axe AAA. **Falta**: E2E con sesiones reales (depende de Identity, Spec #2); el cliente reenvía cookie/Authorization de la persona y no existe ningún bypass.
+- [~] T035 [US2] SC-002: prueba de integración (<10 s, 21–30 ms) y medición local de 30 publicaciones: p50 75 ms, p95 82 ms, máx 98 ms (`tests/perf.spec.ts`). Es una medición local en contenedores con datos sintéticos, **no** evidencia de producción; SC-002 no se declara cumplido.
 
 ## Fase 5 — US3 (P1) Versiones
 
 - [x] T040 [P] [US3] `domain/menu-snapshot.ts`, `domain/version-diff.ts` + specs.
-- [x] T041 [US3] Historial, restaurar (versión N+1), retirar; inmutabilidad por trigger.
+- [x] T041 [US3] Historial, restaurar (versión N+1) con `warning` al administrador, retirar; inmutabilidad por trigger. Probado: restaurar v1 ⇒ v3 a 250; publicar el borrador después ⇒ v4 a 300.
 - [x] T042 [US3] Concurrencia: 409 sin sobrescribir; carrera real de 5 guardados ⇒ 1 gana, 4 reciben 409.
 - [x] T043 [US3] Auditoría de cambios de precio/contenido/disponibilidad con actor y valores (FR-012).
-- [~] T044 [US3] Snapshot para pedidos: `GET /products/:id` devuelve precio base, `menuVersionId` y estado; parche propuesto al líder en `contracts/shared-contracts-proposal.md`. **US3.2/SC-004 extremo a extremo bloqueado por Spec #6 (Orders no existe).**
-- [ ] T045 [US3] UI de historial y restauración. **No iniciada.**
+- [~] T044 [US3] Snapshot para pedidos: `GET /products/:id` devuelve precio base, `menuVersionId` y estado; parche propuesto en `contracts/shared-contracts-proposal.md` (pendiente de revisión del líder). **US3.2/SC-004 extremo a extremo bloqueado por Spec #6 (Orders no existe).**
+- [~] T045 [US3] UI de historial (autor, fecha, cambios legibles) y restauración con advertencia visible y confirmación. Probada contra API stub (axe AAA, cuadro de confirmación). **Falta** E2E con sesión real.
 
 ## Fase 6 — US4 (P2) Disponibilidad
 
-- [x] T050 [US4] `PATCH /admin/products/:id/availability`: personal marca agotado con efecto inmediato; rechaza precio (422) y `PUT` de producto (403); existencias 0 ⇒ agotado. Autorización con mock de test; **la autorización real depende de Spec #2**.
-- [ ] T051 [US4] `applyConfirmedSale` (descuento idempotente). **No implementado** (necesita tabla de idempotencia y el contrato con Orders).
-- [ ] T052 [US4] UI de disponibilidad para personal. **No iniciada.**
+- [x] T050 [US4] `PATCH /admin/products/:id/availability`: personal marca agotado con efecto inmediato; rechaza precio (422) y `PUT` de producto (403); existencias 0 ⇒ agotado; el personal puede listar productos (`GET /admin/products` con `catalog.availability.write`). Autorización con mock de test; **la autorización real depende de Spec #2**.
+- [~] T051 [US4] `CatalogService.applyConfirmedSale(saleId, lines)`: descuento atómico (todo o nada), idempotente por `saleId` (tabla append-only `catalog.stock_consumptions`), bloqueo ordenado, agotado automático y auditoría. Probado de forma aislada con Postgres real: reintento, 12 ventas concurrentes sobre 5 unidades ⇒ 5 confirman, 8 envíos paralelos del mismo `saleId` ⇒ 1 descuento, venta rechazada no deja rastro. **No verificado con Orders** (no existe) ni expuesto por HTTP; el contrato `StockConsumptionPort` sigue pendiente de aprobación.
+- [~] T052 [US4] UI de disponibilidad/existencias (`app/admin/catalogo/productos`), operable con teclado; envía solo disponibilidad/existencias. Probada contra API stub. **Falta** E2E con sesión real y ocultar por rol (la UI aún no conoce el rol de la persona; la API responde 403 si no corresponde).
 
 ## Fase 7 — Cierre
 
-- [ ] T060 Carga/latencia de `GET /menus` (p95 < 300 ms, SC-001). **Sin medir.**
-- [~] T061 `pnpm lint`, `typecheck`, `test`, `build` desde la raíz y `test:integration` en verde (ver evidence.md). **No se midió cobertura ni se ejecutó `pnpm db:migrate` contra el Compose local.**
+- [~] T060 Rendimiento local de `GET /menus` (~180 productos, 30 conexiones, 3000 peticiones): caché caliente p50 76 ms / p95 130 ms / p99 186 ms, 0 errores, 361 req/s; sin caché p95 68 ms (n=60, secuencial). El generador de carga corre en el mismo proceso que la API. **No es una prueba de carga representativa; SC-001 (p95 < 300 ms) no se declara cumplido.**
+- [~] T061 Node 24.22.3 (binario del paquete npm `node`, sin instalación global) + pnpm 10.12.4: `lint`, `typecheck`, `test` (forzado, sin caché de turbo), `build`, `test:ci`, `test:integration` (API y worker) y `test:e2e` en verde; `pnpm db:migrate` OK. **Falta**: cobertura, probar `down`, auditoría de dependencias.
 - [ ] T062 Revisión manual NVDA/VoiceOver (pendiente de una persona).
-- [~] T063 `evidence.md` creado; actualizar `checklists/requirements.md` al cerrar el spec.
+- [~] T063 `evidence.md` y `checklists/requirements.md` actualizados; el spec no se da por terminado.
 
 ## Dependencias
 
-Fase 1 → 2 → (US1 → US2 → US3 → US4). Externas: Spec #2 (authorizer real y nombres de rol), Spec #6 (snapshot/stock), líder (contracts, resolución de `@cafeteria/contracts` en la API, `.env.example`).
+Fase 1 → 2 → (US1 → US2 → US3 → US4). Externas: Spec #2 (authorizer real, sesión web→API y nombres de rol), Spec #6 (snapshot de pedido, consumo de stock), líder (contracts, resolución de `@cafeteria/contracts` en la API, `.env.example`).

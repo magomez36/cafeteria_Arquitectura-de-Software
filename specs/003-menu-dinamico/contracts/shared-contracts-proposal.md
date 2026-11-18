@@ -34,7 +34,8 @@ Orders guarda esa copia en el pedido (constitución IV; SC-004). Catálogo garan
 ## 3. Evento/puerto de venta confirmada (para US4.2)
 
 `StockConsumptionPort.consume(items: {productId, quantity}[], idempotencyKey)`; hasta que exista
-Orders, Catálogo implementa internamente `applyConfirmedSale` y lo prueba aislado.
+Orders, Catálogo implementa internamente `CatalogService.applyConfirmedSale(saleId, lines)` (implementado y probado aislado; no expuesto por HTTP).
+Semántica: idempotente por `saleId`; todo o nada; devuelve `{applied, soldOut[]}`; lanza conflicto (409) si falta stock. **Por acordar con Orders**: qué hace una venta confirmada si falta stock, y si `saleId` es el id del pedido.
 
 ## 4. Autorización (acordar con Integrante 2)
 

@@ -26,10 +26,14 @@
 
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
-- [x] Feature meets measurable outcomes defined in Success Criteria
+- [ ] Feature meets measurable outcomes defined in Success Criteria (SC-001/SC-002 sin medición representativa; SC-004 bloqueado por Orders)
 - [x] No implementation details leak into specification
 
 ## Notes
 
 - Validación superada en la primera iteración.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
+
+## Estado de implementación (2026-11-17)
+
+Este checklist valida la **calidad de la especificación**, no que el feature esté terminado. El spec **no** está terminado: ver `tasks.md` y `evidence.md` (UI sin sesión real, US3.2/SC-004/US4.2 con Orders, SC-001/SC-002 sin evidencia representativa, revisión con lector de pantalla pendiente).
