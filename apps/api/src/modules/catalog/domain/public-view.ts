@@ -66,8 +66,8 @@ export interface PublicMenu {
 export interface PublicViewOptions {
   now: Date;
   timeZone: string;
-  categoryId?: string;
-  excludeAllergens?: readonly string[];
+  categoryId?: string | undefined;
+  excludeAllergens?: readonly string[] | undefined;
 }
 
 const NO_PRODUCTS_NOTICE = 'No hay productos disponibles en este momento.';
