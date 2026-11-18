@@ -24,7 +24,7 @@
 - [x] T015 [US1] `ForgotPassword` / `ResetPassword`, token 30 min de un solo uso (FR-003)
 - [x] T016 [US1] Controladores `/api/v1/identity/*` con cookie de sesión y errores por campo
 - [x] T017 [US1] Tests de integración del flujo completo (registro→confirmar→login→logout→recuperar)
-- [ ] T018 [US1] Web: `/registro`, `/verificar-correo`, `/ingresar`, `/recuperar`, `/restablecer` accesibles — `apps/web/src/features/identity/**`, `apps/web/src/app/(identity)/**`
+- [x] T018 [US1] Web: `/registro`, `/verificar-correo`, `/ingresar`, `/recuperar`, `/restablecer` accesibles — `apps/web/src/features/identity/**`, `apps/web/src/app/(identity)/**`
 - [ ] T019 [US1] Pruebas de web (formularios, foco al primer error) y axe
 
 ## Fase 3: US2 — Roles y MFA (P1)
@@ -35,7 +35,7 @@
 - [x] T023 [US2] Alta de personal por admin con invitación; desactivar/reactivar y revocar sesiones (FR-009)
 - [x] T024 [US2] Restablecimiento de MFA por admin con registro (caso límite del spec)
 - [x] T025 [US2] Tests de permisos negativos 401/403 por rol
-- [ ] T026 [US2] Web: `/personal/ingresar`, enrolamiento MFA, `/admin/personal`
+- [x] T026 [US2] Web: `/personal/ingresar`, enrolamiento MFA, `/admin/personal`
 
 ## Fase 4: US3 — Perfil e historial (P2)
 
@@ -55,7 +55,7 @@
 ## Fase 6: Cierre
 
 - [ ] T036 Validación final: `pnpm lint`, `typecheck`, `test`, `build`; E2E/axe si es posible
-- [ ] T037 Checklist requisito a requisito (FR-001…017, SC-001…006) y pendientes del líder
+- [x] T037 Checklist requisito a requisito (FR-001…017, SC-001…006) y pendientes del líder
 - [ ] T038 Documentar verificación manual con lector de pantalla (pendiente humano)
 
 ## Parches propuestos al líder (no aplicados)
