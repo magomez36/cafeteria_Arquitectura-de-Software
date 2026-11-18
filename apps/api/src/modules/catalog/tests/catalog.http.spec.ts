@@ -183,6 +183,7 @@ describe('Catálogo vía HTTP (Postgres + Redis reales)', () => {
       const res = await api('GET', '/menus');
       expect(res.status).toBe(200);
       expect(res.headers.get('cache-control')).toBe('public, max-age=0, s-maxage=3');
+      expect(res.body.allergens).toHaveLength(14); // lista cerrada para el filtro de la web
     });
   });
 

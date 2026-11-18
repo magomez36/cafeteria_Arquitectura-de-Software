@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { buildSnapshot } from '../domain/menu-snapshot';
+import { ALLERGENS } from '../domain/allergens';
 import { CatalogError } from '../domain/errors';
 import type { AvailabilityPatch, ProductInput } from '../domain/input';
 import {
@@ -65,6 +66,7 @@ export class CatalogService {
     return {
       generatedAt: now.toISOString(),
       timezone: this.timeZone,
+      allergens: ALLERGENS,
       menus: composePublicView(menus, new Map(live), {
         now,
         timeZone: this.timeZone,
