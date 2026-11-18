@@ -69,7 +69,7 @@ jobs:
         run: |
           MERGED_TREE=$(git rev-parse 'HEAD^{tree}')
           export MERGED_TREE
-          node scripts/deploy/verify-image-archive.mjs verified-images
+          node scripts/deploy/verify-image-archive.mjs
       - name: Load the scanned image archive
         if: steps.run.outputs.has_images == 'true'
         shell: bash

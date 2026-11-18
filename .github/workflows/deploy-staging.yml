@@ -44,8 +44,8 @@ jobs:
             exit 0
           fi
           [[ "$artifact" =~ ^published-images-[0-9a-f]{40}-[0-9]+$ ]]
-          gh run download "$PUBLISH_RUN_ID" --name "$artifact" --dir "$RUNNER_TEMP/published"
-          node scripts/deploy/staging-artifacts.mjs "$RUNNER_TEMP/published/image-digests.json" > staging-plan.json
+          gh run download "$PUBLISH_RUN_ID" --name "$artifact" --dir published-staging-input
+          node scripts/deploy/staging-artifacts.mjs > staging-plan.json
           echo 'prepared=true' >> "$GITHUB_OUTPUT"
           echo 'Immutable staging input verified. Render and Vercel were not invoked.' >> "$GITHUB_STEP_SUMMARY"
       - name: Retain verified staging input

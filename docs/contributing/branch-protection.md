@@ -17,7 +17,7 @@ The owner confirmed activation for the final Spec #1 baseline. On 2026-11-17 UTC
 | `images`                      | 15368         | Builds and Trivy scans API/worker images.      |
 | `pr-report`                   | 15368         | Propagates failed or cancelled jobs.           |
 
-The workflow job `security / codeql` also succeeds, but the active rule selects the native **`CodeQL`** check. Preview's existing helper checks the workflow job; this documentation change does not modify it. The native `SonarCloud Code Analysis` check also passes; Sonar failure blocks through required `quality` even though the native Sonar context is not separately listed in the rule.
+The active rule selects the native **`CodeQL`** check. The preview helper now requires that check and the workflow job `security / codeql`. Sonar failure propagates through the required `quality` job. The native `SonarCloud Code Analysis` context is separate from the six required checks.
 
 These checks passed on `341cc4a` ([run 44004176940](https://github.com/magomez36/cafeteria_Arquitectura-de-Software/actions/runs/44004176940)). They must pass again on the documentation commit. PR #1 remains Draft and has no human approval recorded in the reviewed evidence.
 
@@ -32,7 +32,7 @@ The administrator should verify the active rule includes:
 - Linear history and the agreed rebase integration method.
 - No direct-push/bypass exception for normal contributors; force pushes and deletion blocked.
 
-Record an owner settings export or redacted screenshot of these rule details. No credential or token is needed. T033 remains partial until all required settings are evidenced. T031's real failed and successful gates are recorded, but a failed required gate under the active rule has not yet been tested. T034's remaining negative scenarios are also open.
+Record an owner settings export or redacted screenshot of these rule details. T033 remains partial until all required settings are evidenced. Run [44230304773](https://github.com/magomez36/cafeteria_Arquitectura-de-Software/actions/runs/44230304773) propagated a calculated Sonar failure to required `quality` under the active rule. The audit also failed in that run. T031 still needs an isolated enforcement case. T034's remaining negative scenarios are open.
 
 Enforcement experiments need a separate authorized disposable PR. Do not attempt a direct push, forced merge or destructive test against `main` or PR #1 merely to collect evidence. No such experiment was run during documentation closure.
 

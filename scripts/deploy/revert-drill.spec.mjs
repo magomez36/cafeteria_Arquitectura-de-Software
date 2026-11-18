@@ -4,12 +4,17 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { gitExecutable } from '../ci/git-executable.mjs';
 import { buildRevertPatch } from './revert-drill.mjs';
 
 test('prepares an application reversal without changing the source tree or migration files', async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), 'cafeteria-revert-fixture-'));
   const git = (...args) =>
-    execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+    execFileSync(gitExecutable(), args, {
+      cwd,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
   const app = 'apps/api/src/example.txt';
   const migration = 'apps/api/src/modules/example/migrations/20261117150000_expand.ts';
   const save = async (file, content) => {

@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { appendFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gitExecutable } from './git-executable.js';
+import { gitExecutable } from './git-executable.mjs';
 
 export function classifyAffectedFiles(files: string[]) {
   const codePatterns = [

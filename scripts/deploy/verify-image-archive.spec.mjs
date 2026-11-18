@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { validateImageManifest, verifyImageArchive } from './verify-image-archive.mjs';
 import { stagingArtifacts } from './staging-artifacts.mjs';
 
@@ -79,15 +81,30 @@ test('rejects missing, missing-ID, unknown and duplicate components in the manif
 });
 
 test('streams the exact archived bytes and rejects an altered archive', async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), 'cafeteria-image-archive-'));
+  const workspace = await mkdtemp(path.join(tmpdir(), 'cafeteria-image-archive-'));
+  const directory = path.join(workspace, 'verified-images');
   try {
+    await mkdir(directory);
     await writeFile(path.join(directory, 'image-manifest.json'), JSON.stringify(manifest));
     const archivePath = path.join(directory, 'verified-images.tar');
     await writeFile(archivePath, archive);
     assert.deepEqual(await verifyImageArchive(directory, expected), manifest);
+    const command = fileURLToPath(new URL('./verify-image-archive.mjs', import.meta.url));
+    execFileSync(process.execPath, [command], {
+      cwd: workspace,
+      env: {
+        ...process.env,
+        GITHUB_REPOSITORY: expected.repository,
+        PR_NUMBER: expected.prNumber,
+        VERIFIED_RUN_ID: expected.runId,
+        VERIFIED_RUN_ATTEMPT: expected.runAttempt,
+        SOURCE_SHA: expected.sourceSha,
+        MERGED_TREE: expected.tree,
+      },
+    });
     await writeFile(archivePath, `${archive}!`);
     await assert.rejects(verifyImageArchive(directory, expected), /differs from CI/);
   } finally {
-    await rm(directory, { recursive: true });
+    await rm(workspace, { recursive: true });
   }
 });

@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gitExecutable } from '../ci/git-executable.mjs';
 import { validateImageManifest } from './verify-image-archive.mjs';
 
 export function stagingArtifacts(manifest, publication, mergedTree) {
@@ -40,7 +41,7 @@ export function stagingArtifacts(manifest, publication, mergedTree) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const manifest = JSON.parse(await readFile(process.argv[2], 'utf8'));
+  const manifest = JSON.parse(await readFile('published-staging-input/image-digests.json', 'utf8'));
   const { GITHUB_REPOSITORY, PUBLISH_RUN_ID, PUBLISH_RUN_ATTEMPT } = process.env;
   const mergedSha = manifest?.publication?.mergedSha;
   if (
@@ -50,8 +51,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   ) {
     throw new Error('The publication has no valid merged commit SHA.');
   }
-  execFileSync('git', ['merge-base', '--is-ancestor', mergedSha, 'HEAD']);
-  const tree = execFileSync('git', ['rev-parse', `${mergedSha}^{tree}`], {
+  const git = gitExecutable();
+  execFileSync(git, ['merge-base', '--is-ancestor', mergedSha, 'HEAD']);
+  const tree = execFileSync(git, ['rev-parse', `${mergedSha}^{tree}`], {
     encoding: 'utf8',
   }).trim();
   const plan = stagingArtifacts(

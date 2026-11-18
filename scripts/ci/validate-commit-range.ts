@@ -6,7 +6,7 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { isPostgresStartupTransientFailure } from './postgres-startup-retry.js';
-import { gitExecutable } from './git-executable.js';
+import { gitExecutable } from './git-executable.mjs';
 
 type Check = {
   name: string;

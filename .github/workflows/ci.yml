@@ -177,6 +177,7 @@ jobs:
             case "$component" in
               api) [[ "$API_CHANGED" == true ]] || continue ;;
               worker) [[ "$WORKER_CHANGED" == true ]] || continue ;;
+              *) echo '::error::Unknown image component.'; exit 1 ;;
             esac
             id=$(docker image inspect --format '{{.Id}}' "cafeteria-$component:$IMAGE_SHA")
             jq -nc --arg component "$component" --arg id "$id" '{component:$component,id:$id}'

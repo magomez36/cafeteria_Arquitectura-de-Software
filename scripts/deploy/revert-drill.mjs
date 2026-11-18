@@ -3,9 +3,14 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gitExecutable } from '../ci/git-executable.mjs';
 
 function git(cwd, ...args) {
-  return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  return execFileSync(gitExecutable(), args, {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
 }
 
 export async function buildRevertPatch(repository, sha) {

@@ -46,6 +46,12 @@ Run [44004176940](https://github.com/magomez36/cafeteria_Arquitectura-de-Softwar
 
 The per-commit validator passed 28/28 commits in 737,744 ms. Policy tests passed 67/67 and browser E2E/axe passed 4/4. PR #1 remains Draft, open and mergeable without conflicts. The passing analysis does not activate branch protection automatically and does not close the remaining negative CI acceptance scenarios.
 
+## Enforced gate failure during the delivery-platform batch
+
+Run [44230304773](https://github.com/magomez36/cafeteria_Arquitectura-de-Software/actions/runs/44230304773) imported all seven LCOV reports for `232064b`. SonarQube calculated 81.7% new-code coverage, 1.7% duplication and 100% reviewed hotspots. The security rating was C and failed the A requirement. The five open findings concern Git resolution through `PATH` and deployment manifest locations taken from command-line arguments. `quality` failed under the active `main` rule, `images` was skipped and `pr-report` failed. The same run independently failed the dependency audit for `GHSA-fc5q-39xc-vjpf`, so it cannot isolate the Sonar failure as the sole blocker.
+
+The remediation uses a shared fixed Git executable resolver and fixed workspace locations for the downloaded manifests. The existing archive hash, merge tree, workflow-attempt and image identity checks remain in force. The gate configuration and coverage thresholds are unchanged. Validate the mitigation against the scanner result on the new SHA.
+
 ## Monorepo PR acceptance experiment
 
 1. Run a normal PR and inspect the Sonar analysis SHA, all seven LCOV imports, new-code metrics, and `quality` conclusion.

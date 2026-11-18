@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { classifyAffectedFiles, main } from './detect-affected.js';
-import { gitExecutable } from './git-executable.js';
+import { gitExecutable } from './git-executable.mjs';
 import { affectedWorkspaces } from './validate-commit-range.js';
 
 const verifiedBase = '437b02df447d0a4611b9cea601a69750c27cceb9';

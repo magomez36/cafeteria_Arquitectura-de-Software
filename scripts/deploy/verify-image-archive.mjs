@@ -73,7 +73,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     SOURCE_SHA,
     MERGED_TREE,
   } = process.env;
-  await verifyImageArchive(process.argv[2], {
+  await verifyImageArchive('verified-images', {
     repository: GITHUB_REPOSITORY,
     prNumber: PR_NUMBER,
     runId: VERIFIED_RUN_ID,
