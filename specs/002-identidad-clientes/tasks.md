@@ -8,9 +8,9 @@
 - [x] T002 [P] [US1] Política de contraseña: ≥ 12 caracteres y lista local de filtradas (FR-004) — `identity/domain/password-policy.ts` + spec
 - [x] T003 [P] [US1] Generador y hash de tokens de un solo uso con TTL — `identity/domain/one-time-token.ts` + spec
 - [x] T004 [P] [US1] Cifrado AES-256-GCM de PII — `identity/infrastructure/pii-cipher.ts` + spec
-- [ ] T005 [US1] Migración esquema `identity` (accounts, one_time_tokens, security_events) — `identity/migrations/<UTC>_identity_schema.ts`
-- [ ] T006 [US1] Migración esquema `customers` (customers, consents, rights_requests, data_inventory) — `customers/migrations/<UTC>_customers_schema.ts`
-- [ ] T007 [US1] Prueba de migraciones desde BD nueva (Testcontainers) — `identity/tests/migrations.spec.ts`
+- [x] T005 [US1] Migración esquema `identity` (accounts, one_time_tokens, security_events) — `identity/migrations/<UTC>_identity_schema.ts`
+- [x] T006 [US1] Migración esquema `customers` (customers, consents, rights_requests, data_inventory) — `customers/migrations/<UTC>_customers_schema.ts`
+- [x] T007 [US1] Prueba de migraciones desde BD nueva (Testcontainers) — `identity/tests/migrations.spec.ts`
 - [ ] T008 [P] [US1] Puerto `EmailPort` + cliente SMTP mínimo (Mailpit) con reintento — `identity/infrastructure/smtp-email.ts`
 - [ ] T009 [P] [US1] Puerto de sesión en Redis (crear, leer, revocar, revocar-por-cuenta) — `identity/infrastructure/redis-session-store.ts`
 - [ ] T010 [P] [US1] Rate limiter en Redis (FR-005) — `identity/infrastructure/rate-limiter.ts`
