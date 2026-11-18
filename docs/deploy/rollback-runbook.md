@@ -10,4 +10,4 @@ This is an operating procedure draft. No production rollback has been executed.
 6. If a migration was already applied, do not run a destructive down migration; prepare a forward compensating migration that remains compatible with the restored version.
 7. Preserve the previous artifacts until the incident review and retention period end.
 
-Before using this runbook, T048/T050 need a provider-backed release/rollback workflow and staging/production dry-run evidence. Do not execute production actions from a developer workstation.
+The local rollout tests verify the previous baseline, migrate before switching, activate API and worker before web, and restore attempted components by immutable reference in reverse order on a failed smoke check. The PostgreSQL E2E additionally tests transactional cleanup of a failed migration while the prior API remains healthy. A provider adapter must wait for deployment completion and verify which digest or Vercel deployment is live before reporting success. T048/T050 still need those adapters, approved environments, timed smoke and rollback evidence, and the release job and notification path.

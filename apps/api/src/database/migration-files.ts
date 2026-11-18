@@ -3,12 +3,18 @@ export interface MigrationFile {
   readonly prefix: string;
 }
 
-export function validateMigrationOrder(names: readonly string[]): MigrationFile[] {
+export function validateMigrationOrder(
+  names: readonly string[],
+  extension: 'ts' | 'js' = 'ts',
+): MigrationFile[] {
+  const naming = new RegExp(`^(\\d{14})_[a-z0-9][a-z0-9_-]*\\.${extension}$`, 'i');
   const migrations = names
     .map((name) => {
-      const match = /^(\d{14})_[a-z0-9][a-z0-9_-]*\.ts$/i.exec(name);
+      const match = naming.exec(name);
       if (!match)
-        throw new Error(`Migration ${name} must use YYYYMMDDHHMMSS_description.ts naming.`);
+        throw new Error(
+          `Migration ${name} must use YYYYMMDDHHMMSS_description.${extension} naming.`,
+        );
       const prefix = match[1];
       if (!prefix) throw new Error(`Migration ${name} has no timestamp prefix.`);
       return { name, prefix };
