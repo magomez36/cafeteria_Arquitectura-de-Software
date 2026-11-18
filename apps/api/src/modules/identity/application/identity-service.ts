@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto';
 import {
   EmailNotConfirmedError,
   InvalidCredentialsError,
-  InvalidTokenError,
   TooManyAttemptsError,
   ValidationError,
 } from '../domain/errors';
-import { hashToken, issueToken, tokenState, type TokenPurpose } from '../domain/one-time-token';
+import { issueToken, type TokenPurpose } from '../domain/one-time-token';
+import { consumeOneTimeToken } from './consume-token';
 import type {
   Account,
   AccountRepository,
@@ -185,15 +185,8 @@ export class IdentityService {
     );
   }
 
-  private async consumeToken(rawToken: string, purpose: TokenPurpose): Promise<string> {
-    const stored = await this.deps.tokens.find(hashToken(rawToken));
-    if (!stored || stored.purpose !== purpose) throw new InvalidTokenError('invalid');
-    const state = tokenState(stored, this.now());
-    if (state !== 'valid') throw new InvalidTokenError(state);
-    if (!(await this.deps.tokens.markUsed(hashToken(rawToken), this.now()))) {
-      throw new InvalidTokenError('used');
-    }
-    return stored.accountId;
+  private consumeToken(rawToken: string, purpose: TokenPurpose): Promise<string> {
+    return consumeOneTimeToken(this.deps.tokens, rawToken, purpose, this.now());
   }
 
   /** FR-002 */
@@ -335,6 +328,10 @@ export class IdentityService {
     await this.deps.accounts.setPassword(accountId, await hashPassword(newPassword));
     await this.deps.sessions.revokeAllForAccount(accountId);
     await this.event('password_reset_completed', accountId, ip);
+  }
+
+  async recordAccessDenied(accountId: string, ip: string): Promise<void> {
+    await this.event('access_denied', accountId, ip);
   }
 
   get sessionTtlMs(): number {
