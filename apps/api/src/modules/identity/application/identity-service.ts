@@ -287,6 +287,7 @@ export class IdentityService {
       accountId: account.id,
       role: account.role,
       displayName: this.displayName(account),
+      mfaVerified: !needsSecondFactor,
     };
     const sessionId = await this.deps.sessions.create(session, this.deps.config.sessionTtlSeconds);
     await this.event('login_success', account.id, input.ip);
@@ -334,6 +335,10 @@ export class IdentityService {
     await this.deps.accounts.setPassword(accountId, await hashPassword(newPassword));
     await this.deps.sessions.revokeAllForAccount(accountId);
     await this.event('password_reset_completed', accountId, ip);
+  }
+
+  get sessionTtlMs(): number {
+    return this.deps.config.sessionTtlSeconds * 1000;
   }
 
   getSession(sessionId: string | null): Promise<SessionData | null> {
