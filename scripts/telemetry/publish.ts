@@ -136,7 +136,7 @@ export function workflowRunRecord(run: WorkflowRun) {
     schemaVersion: 1,
     workflowRunId: run.id,
     workflow: run.name,
-    branch: run.head_branch,
+    branch: run.head_branch === 'main' ? ('main' as const) : ('non-main' as const),
     sha: run.head_sha,
     result: run.conclusion ?? 'in_progress',
     deployment: /staging deployment/i.test(run.name)
@@ -162,10 +162,9 @@ export async function exportWorkflowMetrics(
   });
   const provider = new MeterProvider({ readers: [reader] });
   const meter = provider.getMeter('cafeteria.delivery-telemetry', '1.0.0');
-  const branch = record.branch === 'main' ? 'main' : 'non-main';
   const attributes = {
     workflow: record.workflow,
-    branch,
+    branch: record.branch,
     conclusion: record.result,
   };
   meter

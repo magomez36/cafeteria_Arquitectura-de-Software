@@ -47,6 +47,7 @@ test('retains outcome and SHA, and classifies staging deployment telemetry', () 
   const record = workflowRunRecord(run);
   assert.equal(record.result, 'success');
   assert.equal(record.sha, run.head_sha);
+  assert.equal(record.branch, 'main');
   assert.deepEqual(record.deployment, { environment: 'staging', sha: run.head_sha });
   assert.equal(record.metric.source, 'deployment');
 });
@@ -95,6 +96,7 @@ test('exports workflow duration and run provenance as OpenTelemetry metrics', as
   assert.ok(runInfo);
   assert.equal(runInfo.dataPoints[0]?.attributes.sha, record.sha);
   assert.equal(runInfo.dataPoints[0]?.attributes.branch, 'non-main');
+  assert.equal(record.branch, 'non-main');
   assert.ok(runCount);
   assert.equal(runCount.dataPoints[0]?.value, 1);
   assert.equal(runCount.dataPoints[0]?.attributes.conclusion, 'success');

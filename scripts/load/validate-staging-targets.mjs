@@ -1,27 +1,9 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-const productionHostLabel = /(^|[.-])(prod|production)([.-]|$)/i;
-const stagingHostLabel = /(^|[.-])(staging|preview)([.-]|$)/i;
+import { stagingOrigin } from '../../tests/load/staging-origin.mjs';
 
 export function validateStagingTarget(value, name) {
-  let url;
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error(`${name} must be a valid absolute URL.`);
-  }
-
-  if (url.protocol !== 'https:') {
-    throw new Error(`${name} must use HTTPS.`);
-  }
-  if (productionHostLabel.test(url.hostname)) {
-    throw new Error(`${name} must not target a production-like hostname.`);
-  }
-  if (!stagingHostLabel.test(url.hostname)) {
-    throw new Error(`${name} must include a staging or preview hostname label.`);
-  }
-  return url;
+  return new URL(stagingOrigin(value, name));
 }
 
 export function validateStagingTargets(environment = process.env) {

@@ -8,10 +8,10 @@ import {
 
 test('accepts HTTPS URLs for non-production staging hosts', () => {
   const targets = validateStagingTargets({
-    STAGING_BASE_URL: 'https://cafeteria-preview.example.net',
+    STAGING_BASE_URL: 'https://cafeteria-staging.example.net',
     STAGING_API_URL: 'https://cafeteria-api-staging.example.net',
   });
-  assert.equal(targets.web.hostname, 'cafeteria-preview.example.net');
+  assert.equal(targets.web.hostname, 'cafeteria-staging.example.net');
   assert.equal(targets.api.hostname, 'cafeteria-api-staging.example.net');
 });
 
@@ -20,10 +20,10 @@ test('requires both explicit staging URLs', () => {
 });
 
 test('rejects malformed and non-HTTPS staging URLs', () => {
-  assert.throws(() => validateStagingTarget('not a URL', 'STAGING_BASE_URL'), /valid absolute URL/);
+  assert.throws(() => validateStagingTarget('not a URL', 'STAGING_BASE_URL'), /absolute HTTPS/);
   assert.throws(
     () => validateStagingTarget('http://cafeteria-staging.example.net', 'STAGING_BASE_URL'),
-    /must use HTTPS/,
+    /absolute HTTPS/,
   );
 });
 
@@ -40,11 +40,24 @@ test('rejects production-like host labels', () => {
   }
 });
 
-test('rejects HTTPS hosts that are not explicitly identified as staging or preview', () => {
-  assert.throws(
-    () => validateStagingTarget('https://api.example.net', 'STAGING_API_URL'),
-    /must include a staging or preview hostname label/,
-  );
+test('rejects generic and preview hosts and enforces an origin rather than an arbitrary URL', () => {
+  for (const host of ['api.example.net', 'api-preview.example.net']) {
+    assert.throws(
+      () => validateStagingTarget(`https://${host}`, 'STAGING_API_URL'),
+      /staging hostname label/,
+    );
+  }
+  for (const url of [
+    'https://api-staging.example.net@api.example.net',
+    'https://api-staging.example.net:8443',
+    'https://api-staging.example.net/health',
+    'https://api-staging.example.net/?target=production',
+    'https://api-staging.example.net/#target',
+    'https://api-staging.example.net\\foo',
+    'https://api-staging.example.net.',
+  ]) {
+    assert.throws(() => validateStagingTarget(url, 'STAGING_API_URL'), /DNS origin/);
+  }
 });
 
 test('command entry point fails closed when staging URLs are not configured', () => {

@@ -24,6 +24,14 @@ test('telemetry workflow reads trusted default-branch runs with read-only permis
     'workflow_run events from forks must not enter the telemetry job',
   );
   assert.equal(workflow.jobs.collect.steps.at(-1).with['retention-days'], 30);
+  assert.match(
+    workflow.jobs.collect.steps.at(-1).if,
+    /always\(\).*hashFiles\('telemetry\.jsonl'\)/,
+  );
+  assert.match(
+    workflow.jobs.collect.steps.at(-1).with.name,
+    /github\.event\.workflow_run\.run_attempt/,
+  );
   const publishStep = workflow.jobs.collect.steps.find(
     (step: { name?: string }) =>
       step.name === 'Record workflow outcome, immutable SHA and duration',
@@ -81,6 +89,14 @@ test('nightly load execution can target only configured staging URLs and never g
     /secrets\.|VERCEL|RENDER_API_TOKEN|environment:\s*production/i,
   );
   assert.match(await readFile(path.join(root, 'tests/load/staging.js'), 'utf8'), /p\(95\)<300/);
+  const scenario = await readFile(path.join(root, 'tests/load/staging.js'), 'utf8');
+  assert.match(scenario, /stagingOrigin\(__ENV\.STAGING_BASE_URL/);
+  assert.match(scenario, /maxRedirects: 0/);
+  assert.match(scenario, /vus: 5, duration: '2m'/);
+  assert.match(scenario, /checks: \['rate==1'\]/);
+  const source = await readFile(path.join(root, '.github/workflows/load-staging.yml'), 'utf8');
+  assert.match(source, /github\.ref_name == github\.event\.repository\.default_branch/);
+  assert.match(source, /steps\.preflight\.outputs\.configured == 'true'/);
 });
 
 test('Grafana dashboards and privacy desired state are parseable and individual metrics remain disabled', async () => {
