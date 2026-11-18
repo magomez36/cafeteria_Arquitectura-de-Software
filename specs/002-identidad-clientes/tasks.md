@@ -11,19 +11,19 @@
 - [x] T005 [US1] Migración esquema `identity` (accounts, one_time_tokens, security_events) — `identity/migrations/<UTC>_identity_schema.ts`
 - [x] T006 [US1] Migración esquema `customers` (customers, consents, rights_requests, data_inventory) — `customers/migrations/<UTC>_customers_schema.ts`
 - [x] T007 [US1] Prueba de migraciones desde BD nueva (Testcontainers) — `identity/tests/migrations.spec.ts`
-- [ ] T008 [P] [US1] Puerto `EmailPort` + cliente SMTP mínimo (Mailpit) con reintento — `identity/infrastructure/smtp-email.ts`
-- [ ] T009 [P] [US1] Puerto de sesión en Redis (crear, leer, revocar, revocar-por-cuenta) — `identity/infrastructure/redis-session-store.ts`
-- [ ] T010 [P] [US1] Rate limiter en Redis (FR-005) — `identity/infrastructure/rate-limiter.ts`
-- [ ] T011 [US1] Registro de eventos de seguridad sin datos sensibles (FR-016) — `identity/application/security-events.ts`
+- [x] T008 [P] [US1] Puerto `EmailPort` + cliente SMTP mínimo (Mailpit) con reintento — `identity/infrastructure/smtp-email.ts`
+- [x] T009 [P] [US1] Puerto de sesión en Redis (crear, leer, revocar, revocar-por-cuenta) — `identity/infrastructure/redis-session-store.ts`
+- [x] T010 [P] [US1] Rate limiter en Redis (FR-005) — `identity/infrastructure/rate-limiter.ts`
+- [x] T011 [US1] Registro de eventos de seguridad sin datos sensibles (FR-016) — `identity/application/security-events.ts`
 
 ## Fase 2: US1 — Cuenta e inicio de sesión (P1)
 
-- [ ] T012 [US1] Caso de uso `RegisterAccount` con consentimiento de política y respuesta no enumerable (FR-001, FR-006) + test correo duplicado
-- [ ] T013 [US1] `VerifyEmail` / `ResendVerification`, enlace usado o caducado (FR-002)
-- [ ] T014 [US1] `Login` / `Logout`, rechazo si no confirmado, límite de intentos y aviso al titular (FR-003, FR-005)
-- [ ] T015 [US1] `ForgotPassword` / `ResetPassword`, token 30 min de un solo uso (FR-003)
-- [ ] T016 [US1] Controladores `/api/v1/identity/*` con cookie de sesión y errores por campo
-- [ ] T017 [US1] Tests de integración del flujo completo (registro→confirmar→login→logout→recuperar)
+- [x] T012 [US1] Caso de uso `RegisterAccount` con consentimiento de política y respuesta no enumerable (FR-001, FR-006) + test correo duplicado
+- [x] T013 [US1] `VerifyEmail` / `ResendVerification`, enlace usado o caducado (FR-002)
+- [x] T014 [US1] `Login` / `Logout`, rechazo si no confirmado, límite de intentos y aviso al titular (FR-003, FR-005)
+- [x] T015 [US1] `ForgotPassword` / `ResetPassword`, token 30 min de un solo uso (FR-003)
+- [x] T016 [US1] Controladores `/api/v1/identity/*` con cookie de sesión y errores por campo
+- [x] T017 [US1] Tests de integración del flujo completo (registro→confirmar→login→logout→recuperar)
 - [ ] T018 [US1] Web: `/registro`, `/verificar-correo`, `/ingresar`, `/recuperar`, `/restablecer` accesibles — `apps/web/src/features/identity/**`, `apps/web/src/app/(identity)/**`
 - [ ] T019 [US1] Pruebas de web (formularios, foco al primer error) y axe
 
