@@ -186,6 +186,27 @@ export class CatalogService {
     return this.repo.listVersions(menuId);
   }
 
+  /**
+   * Puerto interno para Orders (Spec #6): descuento idempotente tras una venta confirmada.
+   * No se expone por HTTP. Pendiente de integrar y verificar con Orders.
+   */
+  async applyConfirmedSale(
+    saleId: string,
+    lines: readonly { productId: string; quantity: number }[],
+  ) {
+    if (!saleId || saleId.length > 100 || lines.length === 0) {
+      throw new CatalogError('validation_failed', 'La venta debe tener identificador y líneas.');
+    }
+    for (const l of lines) {
+      if (!Number.isInteger(l.quantity) || l.quantity < 1 || l.quantity > 1000) {
+        throw new CatalogError('validation_failed', 'La cantidad debe ser un entero de 1 a 1000.');
+      }
+    }
+    const result = await this.repo.applyConfirmedSale(saleId, lines);
+    if (result.applied) await this.cache.invalidate();
+    return result;
+  }
+
   listProducts() {
     return this.repo.listProducts();
   }

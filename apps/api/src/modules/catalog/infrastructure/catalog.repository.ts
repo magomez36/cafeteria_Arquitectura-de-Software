@@ -568,4 +568,56 @@ export class CatalogRepository {
       return this.toProductRow(rows[0] as Row);
     });
   }
+
+  /**
+   * Descuenta existencias de una venta confirmada, de forma atómica e idempotente por `saleId`.
+   * Todo o nada: si una línea no tiene existencias suficientes no se descuenta ninguna y no se
+   * registra la venta (se puede reintentar). Productos sin control de existencias (NULL) no cambian.
+   */
+  applyConfirmedSale(
+    saleId: string,
+    lines: readonly { productId: string; quantity: number }[],
+  ): Promise<{ applied: boolean; soldOut: string[] }> {
+    // Se fusionan líneas repetidas y se ordena por producto para bloquear siempre en el mismo orden.
+    const merged = new Map<string, number>();
+    for (const l of lines) merged.set(l.productId, (merged.get(l.productId) ?? 0) + l.quantity);
+    const ordered = [...merged.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+    return this.tx(async (c) => {
+      const marker = await c.query(
+        `INSERT INTO catalog.stock_consumptions (sale_id, lines) VALUES ($1, $2::jsonb)
+         ON CONFLICT (sale_id) DO NOTHING`,
+        [saleId, JSON.stringify(ordered.map(([productId, quantity]) => ({ productId, quantity })))],
+      );
+      if (marker.rowCount === 0) return { applied: false, soldOut: [] };
+      const soldOut: string[] = [];
+      for (const [productId, quantity] of ordered) {
+        const cur = await c.query(
+          'SELECT stock_quantity, availability FROM catalog.products WHERE id = $1 FOR UPDATE',
+          [productId],
+        );
+        if (!cur.rows[0]) throw notFound('El producto');
+        const stock = cur.rows[0].stock_quantity as number | null;
+        if (stock === null) continue;
+        if (stock < quantity) {
+          throw new CatalogError('conflict', 'Existencias insuficientes para confirmar la venta.', [
+            { productId, requested: quantity, available: stock },
+          ]);
+        }
+        const left = stock - quantity;
+        await c.query(
+          `UPDATE catalog.products
+              SET stock_quantity = $2,
+                  availability = CASE WHEN $2 = 0 THEN 'sold_out' ELSE availability END,
+                  updated_at = now()
+            WHERE id = $1`,
+          [productId, left],
+        );
+        await this.audit(c, 'product', productId, 'stock_consumed', `sale:${saleId}`, {
+          stockQuantity: { from: stock, to: left },
+        });
+        if (left === 0) soldOut.push(productId);
+      }
+      return { applied: true, soldOut };
+    });
+  }
 }
