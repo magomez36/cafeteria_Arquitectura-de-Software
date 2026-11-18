@@ -8,7 +8,7 @@ COPY packages/feature-flags/package.json packages/feature-flags/package.json
 COPY packages/tsconfig/package.json packages/tsconfig/package.json
 RUN pnpm install --frozen-lockfile --filter @cafeteria/api...
 COPY . .
-RUN pnpm --filter @cafeteria/feature-flags build && pnpm --filter @cafeteria/api build
+RUN pnpm --filter @cafeteria/api... build
 
 FROM node:24-alpine AS production-dependencies
 WORKDIR /workspace
@@ -29,7 +29,7 @@ COPY --from=production-dependencies /workspace/apps/api/node_modules ./apps/api/
 COPY --from=production-dependencies /workspace/packages/feature-flags/node_modules ./packages/feature-flags/node_modules
 COPY --from=production-dependencies /workspace/packages/contracts/package.json ./packages/contracts/package.json
 COPY --from=production-dependencies /workspace/packages/feature-flags/package.json ./packages/feature-flags/package.json
-COPY --from=build /workspace/packages/contracts/src ./packages/contracts/src
+COPY --from=build /workspace/packages/contracts/dist ./packages/contracts/dist
 COPY --from=build /workspace/packages/feature-flags/dist ./packages/feature-flags/dist
 COPY --from=build /workspace/apps/api/package.json ./apps/api/package.json
 COPY --from=build /workspace/apps/api/dist ./apps/api/dist
