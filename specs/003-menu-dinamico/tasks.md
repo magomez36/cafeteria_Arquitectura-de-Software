@@ -34,7 +34,7 @@ Leyenda: `[x]` hecho y verificado · `[~]` parcial (se indica qué falta) · `[ 
 - [x] T031 [US2] Repositorio y casos de uso de borrador (menú, categorías, ítems, productos, horario) con `revision`.
 - [x] T032 [US2] Controlador admin + autorización en servidor: 401 por defecto, sin `x-role`, ninguna ruta admin pública; 403 al personal en rutas de contenido.
 - [x] T033 [US2] Publicar (transacción atómica) + preview; integración: bloqueo con detalle, publicación visible al instante.
-- [ ] T034 [US2] UI admin (editor, previsualización, publicación). **No iniciada.**
+- [ ] T034 [US2] UI admin (editor, previsualización, publicación). **No iniciada; bloqueada**: las rutas admin responden 401 hasta que Spec #2 defina cómo la web reenvía la sesión a la API; sin eso la UI no se puede ejercitar de extremo a extremo.
 - [~] T035 [US2] SC-002: se midió publicar→visible = 21–25 ms en local (1 muestra, sin carga). **No es una medición representativa; SC-002 no se declara cumplido.**
 
 ## Fase 5 — US3 (P1) Versiones
