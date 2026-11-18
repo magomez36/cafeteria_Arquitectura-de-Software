@@ -7,7 +7,13 @@ dist/
 **/dist/**
 coverage/
 **/coverage/**
+docs/progress/
+**/.turbo/
+**/.vercel/
 *.log
 .env
 .env.*
 !.env.example
+**/.env
+**/.env.*
+!**/.env.example
