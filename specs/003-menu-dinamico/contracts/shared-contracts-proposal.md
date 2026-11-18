@@ -4,6 +4,10 @@ Catálogo **no** modifica `packages/contracts/**`, manifests, lockfile, `.env.ex
 Se avanza dentro de `modules/catalog/**` con tipos locales y se propone lo siguiente
 (aditivo, compatible con consumidores actuales).
 
+## 0. Resolución de `@cafeteria/contracts` desde la API (bloqueante menor)
+
+Hoy `apps/api` (CommonJS, `moduleResolution: Node`) no resuelve `@cafeteria/contracts` (paquete ESM con `exports` a `.ts`): `ts-jest` falla con TS2307. Se pide al líder añadir en `apps/api/tsconfig.json` `paths` `"@cafeteria/contracts": ["../../packages/contracts/src/index.ts"]` y el `moduleNameMapper` equivalente en `jest.config.js` / `test/jest-integration.json` (igual que `@cafeteria/feature-flags`). Mientras tanto Catálogo usa un tipo `Money` local idéntico.
+
 ## 1. `packages/contracts/src/catalog/product.ts` (aditivo)
 
 ```ts
