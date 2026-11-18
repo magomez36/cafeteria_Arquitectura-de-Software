@@ -39,18 +39,18 @@
 
 ## Fase 4: US3 — Perfil e historial (P2)
 
-- [ ] T027 [US3] Ver/editar perfil propio con PII cifrada (FR-010)
-- [ ] T028 [US3] Cambio de correo (reconfirmar + aviso al anterior) y de contraseña (reautenticación)
-- [ ] T029 [US3] `OrdersHistoryPort` con stub; endpoint marcado pendiente hasta que exista Orders (FR-011)
-- [ ] T030 [US3] Web `/perfil` accesible y tests
+- [x] T027 [US3] Ver/editar perfil propio con PII cifrada (FR-010)
+- [x] T028 [US3] Cambio de correo (reconfirmar + aviso al anterior) y de contraseña (reautenticación)
+- [x] T029 [US3] `OrdersHistoryPort` con stub; endpoint marcado pendiente hasta que exista Orders (FR-011)
+- [x] T030 [US3] Web `/perfil` accesible y tests
 
 ## Fase 5: US4 — Derechos LOPDP (P2)
 
-- [ ] T031 [US4] Inventario de datos visible al cliente (FR-012)
-- [ ] T032 [US4] Consentimientos con historial fechado (FR-013)
-- [ ] T033 [US4] Exportación JSON de datos personales, < 1 min (FR-014, SC-005)
-- [ ] T034 [US4] Eliminación con reautenticación, pedido en curso difiere, anonimización (FR-015, SC-006)
-- [ ] T035 [US4] Web `/privacidad` y tests
+- [x] T031 [US4] Inventario de datos visible al cliente (FR-012)
+- [x] T032 [US4] Consentimientos con historial fechado (FR-013)
+- [x] T033 [US4] Exportación JSON de datos personales, < 1 min (FR-014, SC-005)
+- [x] T034 [US4] Eliminación con reautenticación, pedido en curso difiere, anonimización (FR-015, SC-006)
+- [x] T035 [US4] Web `/privacidad` y tests
 
 ## Fase 6: Cierre
 
