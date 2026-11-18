@@ -59,6 +59,8 @@ export interface SessionData {
   readonly accountId: string;
   readonly role: Role;
   readonly displayName: string;
+  /** False for staff/admin until the second factor is enrolled and verified. */
+  readonly mfaVerified: boolean;
 }
 
 export interface SessionStore {
