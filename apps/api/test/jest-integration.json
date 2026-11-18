@@ -6,7 +6,9 @@
   "testTimeout": 120000,
   "maxWorkers": 1,
   "clearMocks": true,
+  "resolver": "<rootDir>/jest.workspace-resolver.cjs",
   "moduleNameMapper": {
+    "^@cafeteria/contracts$": "<rootDir>/../../packages/contracts/src/index.ts",
     "^@cafeteria/feature-flags$": "<rootDir>/../../packages/feature-flags/src/index.ts"
   }
 }
