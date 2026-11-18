@@ -1,6 +1,8 @@
 # Preview and staging smoke checks
 
-The Playwright suite in `apps/web/e2e/staging-smoke.spec.ts` can run against local development servers or an already deployed preview/staging pair. The default local run starts Next.js at `http://127.0.0.1:3000` and NestJS at `http://127.0.0.1:4000`. To target a deployed environment, set `WEB_BASE_URL` and `API_BASE_URL`; setting either disables local server startup. The suite checks the home page heading, axe WCAG 2.1 A/AA violations, and the API `/health` status/body.
+The Playwright suite in `apps/web/e2e/staging-smoke.spec.ts` can run against local development servers or an already deployed preview/staging pair. The default local run starts Next.js at `http://127.0.0.1:3000` and NestJS at `http://127.0.0.1:4000`. To target a deployed environment, set both `WEB_BASE_URL` and `API_BASE_URL`. The suite checks the home page heading, axe A/AA/AAA rules, and the API `/health` status and body.
+
+The preview gate uses the PR merge tree in a read-only job so the verifier works during the initial platform PR, before its scripts exist on `main`. It checks both the branch protection's `CodeQL` context and the `security / codeql` Actions job for the PR head SHA. Draft and fork PRs skip the deployment path.
 
 Example (use the provider URLs supplied by the account owner; this repository does not invent them):
 

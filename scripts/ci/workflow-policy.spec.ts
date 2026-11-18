@@ -205,8 +205,11 @@ test('CI actions are pinned, base PR CI has no deployment secrets, and preview i
     checks: 'read',
     'pull-requests': 'read',
   });
+  assert.equal(preview.jobs['require-ci']?.steps[0]?.with?.ref, '${{ github.sha }}');
+  assert.equal(preview.jobs['require-ci']?.steps[0]?.with?.['persist-credentials'], false);
   const previewSource = await readFile(previewPath, 'utf8');
   assert.match(previewSource, /head\.repo\.full_name == github\.repository/);
+  assert.doesNotMatch(previewSource.split('  deploy-preview:')[0], /secrets\./);
   assert.match(previewSource, /ref: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
   assert.match(previewSource, /prebuilt artifact without deploy credentials/);
   assert.equal(preview.jobs['deploy-preview']?.environment, 'preview');

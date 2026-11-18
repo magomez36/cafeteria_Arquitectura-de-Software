@@ -74,6 +74,23 @@ test('blocks completed failed checks and fails closed on API errors or missing i
   );
 });
 
+test('blocks the required CodeQL check even if the reusable CodeQL job passed', async () => {
+  await assert.rejects(
+    verifyRequiredChecks({
+      token: 'test-token',
+      repository: 'cafeteria/example',
+      headSha: 'a'.repeat(40),
+      fetchChecks: async () =>
+        Response.json({
+          check_runs: successCheckRuns.map((check) =>
+            check.name === 'CodeQL' ? { ...check, conclusion: 'failure' } : check,
+          ),
+        }),
+    }),
+    /CodeQL=failure/,
+  );
+});
+
 test('waits for missing or pending checks and times out without treating them as success', async () => {
   let calls = 0;
   let nowCalls = 0;

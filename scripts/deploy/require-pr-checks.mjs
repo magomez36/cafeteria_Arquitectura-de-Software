@@ -2,6 +2,7 @@ import { pathToFileURL } from 'node:url';
 
 export const requiredChecks = [
   'quality',
+  'CodeQL',
   'security / codeql',
   'security / dependency-audit',
   'security / secret-scan',
