@@ -1,0 +1,12 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "..",
+  "testEnvironment": "node",
+  "testRegex": "(.e2e-spec|staging-smoke.spec).ts$",
+  "transform": { "^.+\\.(t|j)s$": "ts-jest" },
+  "resolver": "<rootDir>/jest.workspace-resolver.cjs",
+  "moduleNameMapper": {
+    "^@cafeteria/contracts$": "<rootDir>/../../packages/contracts/src/index.ts",
+    "^@cafeteria/feature-flags$": "<rootDir>/../../packages/feature-flags/src/index.ts"
+  }
+}

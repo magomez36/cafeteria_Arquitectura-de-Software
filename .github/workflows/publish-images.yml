@@ -1,0 +1,115 @@
+name: Publish verified images
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ghcr-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: publish-ghcr
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+      pull-requests: read
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: Checkout the merged tree without persisting credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+      - name: Locate successful PR CI run for the exact source SHA
+        id: run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          runs=$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs" -f event=pull_request -f head_sha="$SOURCE_SHA" -f per_page=100)
+          run=$(jq -ce --arg pr "$PR_NUMBER" --arg repo "$GITHUB_REPOSITORY" \
+            '[.workflow_runs[] | select(.head_repository.full_name == $repo and any(.pull_requests[]; (.number | tostring) == $pr))] | max_by(.id) | select(.conclusion == "success")' <<< "$runs")
+          run_id=$(jq -er .id <<< "$run")
+          attempt=$(jq -er .run_attempt <<< "$run")
+          image_state=$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/attempts/$attempt/jobs" --jq '.jobs[] | select(.name == "images") | .conclusion')
+          case "$image_state" in
+            success) echo 'has_images=true' >> "$GITHUB_OUTPUT" ;;
+            skipped) echo 'No images were built in the approved PR run.' >> "$GITHUB_STEP_SUMMARY" ;;
+            *) echo '::error::Could not verify the images job in the approved PR run.'; exit 1 ;;
+          esac
+          echo "id=$run_id" >> "$GITHUB_OUTPUT"
+          echo "attempt=$attempt" >> "$GITHUB_OUTPUT"
+      - name: Download images built and scanned by PR CI
+        if: steps.run.outputs.has_images == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFIED_RUN_ID: ${{ steps.run.outputs.id }}
+          VERIFIED_RUN_ATTEMPT: ${{ steps.run.outputs.attempt }}
+        run: gh run download "$VERIFIED_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "verified-images-$SOURCE_SHA-$VERIFIED_RUN_ATTEMPT" --dir verified-images
+      - name: Validate source manifest and detect images to promote
+        if: steps.run.outputs.has_images == 'true'
+        shell: bash
+        env:
+          VERIFIED_RUN_ID: ${{ steps.run.outputs.id }}
+          VERIFIED_RUN_ATTEMPT: ${{ steps.run.outputs.attempt }}
+        run: |
+          MERGED_TREE=$(git rev-parse 'HEAD^{tree}')
+          export MERGED_TREE
+          node scripts/deploy/verify-image-archive.mjs
+      - name: Load the scanned image archive
+        if: steps.run.outputs.has_images == 'true'
+        shell: bash
+        run: |
+          docker load --input verified-images/verified-images.tar
+          while IFS=$'\t' read -r component expected_id; do
+            actual_id=$(docker image inspect --format '{{.Id}}' "cafeteria-$component:$SOURCE_SHA")
+            test "$actual_id" = "$expected_id" || { echo '::error::Loaded image identity differs from scanned image.'; exit 1; }
+          done < <(jq -r '.images[] | [.component,.id] | @tsv' verified-images/image-manifest.json)
+      - name: Authenticate to GHCR with the job-scoped token
+        if: steps.run.outputs.has_images == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Push verified images and record immutable digests
+        if: steps.run.outputs.has_images == 'true'
+        shell: bash
+        run: |
+          prefix="ghcr.io/${GITHUB_REPOSITORY,,}"
+          while IFS= read -r component; do
+            source_image="cafeteria-$component:$SOURCE_SHA"
+            registry_image="$prefix/$component"
+            target_image="$registry_image:$SOURCE_SHA"
+            docker tag "$source_image" "$target_image"
+            docker push "$target_image"
+            digest=$(docker image inspect --format '{{json .RepoDigests}}' "$target_image" | \
+              jq -er --arg name "$registry_image" 'map(select(startswith($name + "@sha256:"))) | if length == 1 then .[0] else empty end')
+            [[ "$digest" =~ @sha256:[0-9a-f]{64}$ ]] || { echo '::error::Invalid registry digest.'; exit 1; }
+            jq -nc --arg component "$component" --arg ref "$digest" '{component:$component,ref:$ref}'
+            printf '%s artifact: %s\nSource SHA: %s\n' "$component" "$digest" "$SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          done < <(jq -r '.images[].component' verified-images/image-manifest.json) > digests.jsonl
+          jq --slurpfile digests digests.jsonl --arg merge "$(git rev-parse HEAD)" \
+            --arg run "$GITHUB_RUN_ID" --arg attempt "$GITHUB_RUN_ATTEMPT" \
+            '. + {digests:$digests,publication:{mergedSha:$merge,runId:$run,runAttempt:$attempt}}' \
+            verified-images/image-manifest.json > image-digests.json
+      - name: Retain immutable registry manifest
+        if: steps.run.outputs.has_images == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: published-images-${{ github.event.pull_request.head.sha }}-${{ github.run_attempt }}
+          path: image-digests.json
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,36 @@
+{
+  "uid": "cafeteria-workflow",
+  "title": "Cafetería - PR workflow",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "utc",
+  "refresh": "5m",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Open pull requests",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [{ "expr": "github_pull_requests_open", "refId": "A" }],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "PR review wait (seconds)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [{ "expr": "github_pr_review_wait_seconds", "refId": "A" }],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Checks by conclusion",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [
+        { "expr": "github_workflow_runs_total", "refId": "A", "legendFormat": "{{conclusion}}" }
+      ],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 }
+    }
+  ]
+}

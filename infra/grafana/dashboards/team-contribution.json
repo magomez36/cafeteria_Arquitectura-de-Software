@@ -1,0 +1,34 @@
+{
+  "uid": "cafeteria-team-contribution",
+  "title": "Cafetería - Team contribution (aggregate)",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "utc",
+  "refresh": "5m",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Integrated changes (team aggregate)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [{ "expr": "team_changes_integrated", "refId": "A" }],
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Reviews completed (team aggregate)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [{ "expr": "team_reviews_completed", "refId": "A" }],
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Tests and documentation delivered (team aggregate)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [{ "expr": "team_tests_and_docs_delivered", "refId": "A" }],
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 }
+    }
+  ]
+}

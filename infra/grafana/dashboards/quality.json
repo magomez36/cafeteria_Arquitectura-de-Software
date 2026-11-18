@@ -1,0 +1,34 @@
+{
+  "uid": "cafeteria-quality",
+  "title": "Cafetería - Quality gate",
+  "schemaVersion": 39,
+  "version": 1,
+  "timezone": "utc",
+  "refresh": "5m",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Quality Gate status",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [{ "expr": "sonarqube_quality_gate_status", "refId": "A" }],
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Coverage on new code (%)",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [{ "expr": "sonarqube_coverage_new_code", "refId": "A" }],
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "New vulnerabilities and bugs",
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "targets": [{ "expr": "sonarqube_issues_new", "refId": "A", "legendFormat": "{{type}}" }],
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 }
+    }
+  ]
+}

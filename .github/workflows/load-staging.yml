@@ -1,0 +1,45 @@
+name: Staging load test
+
+on:
+  schedule:
+    - cron: '17 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-load-test
+  cancel-in-progress: false
+
+jobs:
+  k6:
+    name: k6-staging
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Require explicitly configured staging endpoints
+        id: preflight
+        shell: bash
+        env:
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == schedule && -z "$STAGING_BASE_URL" && -z "$STAGING_API_URL" ]]; then
+            echo 'Staging URLs are not provisioned; no load test ran.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node scripts/load/validate-staging-targets.mjs
+          echo 'configured=true' >> "$GITHUB_OUTPUT"
+      - name: Run low-volume staging-only load scenario
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+        run: go run go.k6.io/k6@v0.54.0 run --env "STAGING_BASE_URL=$STAGING_BASE_URL" --env "STAGING_API_URL=$STAGING_API_URL" tests/load/staging.js

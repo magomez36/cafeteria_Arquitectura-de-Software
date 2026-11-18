@@ -1,0 +1,2 @@
+:root { color-scheme: light; --color-ink: #111111; --color-paper: #ffffff; --color-accent: #064e3b; --font-body: Arial, sans-serif; --font-heading: Georgia, serif; --motion-duration: 180ms; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }
