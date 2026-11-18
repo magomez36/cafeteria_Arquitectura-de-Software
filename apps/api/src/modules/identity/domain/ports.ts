@@ -33,6 +33,9 @@ export interface AccountRepository {
   setStatus(id: string, status: AccountStatus): Promise<void>;
   setPassword(id: string, passwordHash: string): Promise<void>;
   setMfa(id: string, secretEnc: string | null, enabled: boolean): Promise<void>;
+  setEmail(id: string, emailBlind: string, emailEnc: string): Promise<void>;
+  /** Removes every personal datum and disables the account (right to erasure). */
+  erase(id: string): Promise<void>;
   listStaff(): Promise<readonly Account[]>;
 }
 
@@ -41,6 +44,7 @@ export interface StoredOneTimeToken {
   readonly purpose: TokenPurpose;
   readonly expiresAt: Date;
   readonly usedAt: Date | null;
+  readonly payloadEnc: string | null;
 }
 
 export interface TokenRepository {
@@ -49,6 +53,7 @@ export interface TokenRepository {
     accountId: string;
     purpose: TokenPurpose;
     expiresAt: Date;
+    payloadEnc?: string;
   }): Promise<void>;
   find(tokenHash: string): Promise<StoredOneTimeToken | null>;
   /** Atomically marks the token as used; false when it was already used. */
@@ -71,6 +76,8 @@ export interface SessionStore {
   createChallenge(accountId: string, ttlSeconds: number): Promise<string>;
   readChallenge(challengeId: string): Promise<string | null>;
   deleteChallenge(challengeId: string): Promise<void>;
+  /** Marks a recent password re-check, readable once by other modules for sensitive actions. */
+  markReauthenticated(accountId: string, ttlSeconds: number): Promise<void>;
 }
 
 export interface RateLimiter {
@@ -107,7 +114,12 @@ export type SecurityEventType =
   | 'mfa_enrolled'
   | 'mfa_failed'
   | 'mfa_reset'
-  | 'email_delivery_failed';
+  | 'email_delivery_failed'
+  | 'password_changed'
+  | 'email_change_requested'
+  | 'email_changed'
+  | 'reauthenticated'
+  | 'account_erased';
 
 export interface SecurityEventLog {
   record(type: SecurityEventType, accountId: string | null, ipHash: string | null): Promise<void>;

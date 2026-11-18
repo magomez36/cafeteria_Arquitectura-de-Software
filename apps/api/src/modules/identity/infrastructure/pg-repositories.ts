@@ -104,6 +104,25 @@ export class PgAccountRepository implements AccountRepository {
     );
   }
 
+  async setEmail(id: string, emailBlind: string, emailEnc: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE identity.accounts SET email_blind = $2, email_enc = $3, updated_at = now() WHERE id = $1',
+      [id, emailBlind, emailEnc],
+    );
+  }
+
+  async erase(id: string): Promise<void> {
+    await this.pool.query(
+      `UPDATE identity.accounts
+          SET email_blind = 'erased:' || id::text, email_enc = 'erased', display_name_enc = NULL,
+              password_hash = 'erased', status = 'disabled', mfa_secret_enc = NULL, mfa_enabled = false,
+              updated_at = now()
+        WHERE id = $1`,
+      [id],
+    );
+    await this.pool.query('DELETE FROM identity.one_time_tokens WHERE account_id = $1', [id]);
+  }
+
   async listStaff(): Promise<readonly Account[]> {
     const result = await this.pool.query<AccountRow>(
       `SELECT ${COLUMNS} FROM identity.accounts WHERE role IN ('staff', 'admin') ORDER BY created_at`,
@@ -120,11 +139,12 @@ export class PgTokenRepository implements TokenRepository {
     accountId: string;
     purpose: TokenPurpose;
     expiresAt: Date;
+    payloadEnc?: string;
   }): Promise<void> {
     await this.pool.query(
-      `INSERT INTO identity.one_time_tokens (token_hash, account_id, purpose, expires_at)
-       VALUES ($1, $2, $3, $4)`,
-      [t.tokenHash, t.accountId, t.purpose, t.expiresAt],
+      `INSERT INTO identity.one_time_tokens (token_hash, account_id, purpose, expires_at, payload_enc)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [t.tokenHash, t.accountId, t.purpose, t.expiresAt, t.payloadEnc ?? null],
     );
   }
 
@@ -134,8 +154,9 @@ export class PgTokenRepository implements TokenRepository {
       purpose: TokenPurpose;
       expires_at: Date;
       used_at: Date | null;
+      payload_enc: string | null;
     }>(
-      'SELECT account_id, purpose, expires_at, used_at FROM identity.one_time_tokens WHERE token_hash = $1',
+      'SELECT account_id, purpose, expires_at, used_at, payload_enc FROM identity.one_time_tokens WHERE token_hash = $1',
       [tokenHash],
     );
     const row = result.rows[0];
@@ -145,6 +166,7 @@ export class PgTokenRepository implements TokenRepository {
           purpose: row.purpose,
           expiresAt: row.expires_at,
           usedAt: row.used_at,
+          payloadEnc: row.payload_enc,
         }
       : null;
   }

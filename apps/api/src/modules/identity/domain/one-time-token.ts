@@ -1,12 +1,13 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-export type TokenPurpose = 'verify_email' | 'reset_password' | 'invite';
+export type TokenPurpose = 'verify_email' | 'reset_password' | 'invite' | 'change_email';
 
 /** Time to live per purpose, in milliseconds. Password reset is 30 minutes (FR-003). */
 export const TOKEN_TTL_MS: Readonly<Record<TokenPurpose, number>> = {
   verify_email: 24 * 60 * 60 * 1000,
   reset_password: 30 * 60 * 1000,
   invite: 72 * 60 * 60 * 1000,
+  change_email: 60 * 60 * 1000,
 };
 
 export interface IssuedToken {

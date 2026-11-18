@@ -185,8 +185,8 @@ export class IdentityService {
     );
   }
 
-  private consumeToken(rawToken: string, purpose: TokenPurpose): Promise<string> {
-    return consumeOneTimeToken(this.deps.tokens, rawToken, purpose, this.now());
+  private async consumeToken(rawToken: string, purpose: TokenPurpose): Promise<string> {
+    return (await consumeOneTimeToken(this.deps.tokens, rawToken, purpose, this.now())).accountId;
   }
 
   /** FR-002 */

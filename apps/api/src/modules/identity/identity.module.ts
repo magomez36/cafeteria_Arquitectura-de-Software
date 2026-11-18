@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common';
 import { IdentityService } from './application/identity-service';
+import { AccountService } from './application/account-service';
+import { AccountController } from './controllers/account.controller';
+import { ErasureConsumer } from './infrastructure/erasure-consumer';
 import { MfaService } from './application/mfa-service';
 import { StaffService } from './application/staff-service';
 import { AuthGuard } from './controllers/auth.guard';
@@ -28,7 +31,7 @@ function piiKey(): string {
 }
 
 @Module({
-  controllers: [IdentityController, MfaController, StaffController],
+  controllers: [IdentityController, MfaController, StaffController, AccountController],
   providers: [
     IdentityConnections,
     {
@@ -69,6 +72,13 @@ function piiKey(): string {
       useFactory: (deps: IdentityDeps, identity: IdentityService): StaffService =>
         new StaffService(deps, identity),
     },
+    {
+      provide: AccountService,
+      inject: ['IDENTITY_DEPS', IdentityService],
+      useFactory: (deps: IdentityDeps, identity: IdentityService): AccountService =>
+        new AccountService(deps, identity),
+    },
+    ErasureConsumer,
     AuthGuard,
   ],
   exports: [],

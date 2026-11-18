@@ -55,6 +55,11 @@ export class RedisSessionStore implements SessionStore {
     return redis.get(`identity:challenge:${challengeId}`);
   }
 
+  async markReauthenticated(accountId: string, ttlSeconds: number): Promise<void> {
+    const redis = await this.connections.redisClient();
+    await redis.set(`identity:reauth:${accountId}`, '1', { EX: ttlSeconds });
+  }
+
   async deleteChallenge(challengeId: string): Promise<void> {
     const redis = await this.connections.redisClient();
     await redis.del(`identity:challenge:${challengeId}`);

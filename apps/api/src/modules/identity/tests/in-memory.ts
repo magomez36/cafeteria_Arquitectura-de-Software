@@ -55,6 +55,20 @@ export class InMemoryAccounts implements AccountRepository {
   setMfa(id: string, mfaSecretEnc: string | null, mfaEnabled: boolean): Promise<void> {
     return this.patch(id, { mfaSecretEnc, mfaEnabled });
   }
+  setEmail(id: string, emailBlind: string, emailEnc: string): Promise<void> {
+    return this.patch(id, { emailBlind, emailEnc });
+  }
+  erase(id: string): Promise<void> {
+    return this.patch(id, {
+      emailBlind: `erased:${id}`,
+      emailEnc: 'erased',
+      displayNameEnc: null,
+      passwordHash: 'erased',
+      status: 'disabled',
+      mfaEnabled: false,
+      mfaSecretEnc: null,
+    });
+  }
   listStaff(): Promise<readonly Account[]> {
     return Promise.resolve([...this.items.values()].filter((x) => x.role !== 'customer'));
   }
@@ -67,12 +81,14 @@ export class InMemoryTokens implements TokenRepository {
     accountId: string;
     purpose: TokenPurpose;
     expiresAt: Date;
+    payloadEnc?: string;
   }): Promise<void> {
     this.items.set(t.tokenHash, {
       accountId: t.accountId,
       purpose: t.purpose,
       expiresAt: t.expiresAt,
       usedAt: null,
+      payloadEnc: t.payloadEnc ?? null,
     });
     return Promise.resolve();
   }
@@ -90,6 +106,11 @@ export class InMemoryTokens implements TokenRepository {
 export class InMemorySessions implements SessionStore {
   readonly sessions = new Map<string, SessionData>();
   readonly challenges = new Map<string, string>();
+  readonly reauth = new Set<string>();
+  markReauthenticated(accountId: string): Promise<void> {
+    this.reauth.add(accountId);
+    return Promise.resolve();
+  }
   create(data: SessionData): Promise<string> {
     const id = randomUUID();
     this.sessions.set(id, data);

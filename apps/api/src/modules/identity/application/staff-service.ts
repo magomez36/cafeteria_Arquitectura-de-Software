@@ -95,7 +95,12 @@ export class StaffService {
   async acceptInvite(rawToken: string, newPassword: string, ip: string): Promise<void> {
     const errors = validateNewPassword(newPassword, 'newPassword');
     if (errors.length > 0) throw new ValidationError(errors);
-    const accountId = await consumeOneTimeToken(this.deps.tokens, rawToken, 'invite', this.now());
+    const { accountId } = await consumeOneTimeToken(
+      this.deps.tokens,
+      rawToken,
+      'invite',
+      this.now(),
+    );
     await this.deps.accounts.setPassword(accountId, await hashPassword(newPassword));
     await this.deps.accounts.setStatus(accountId, 'active');
     await this.deps.events.record('email_verified', accountId, this.identity.hashIp(ip));
