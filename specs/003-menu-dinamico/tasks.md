@@ -9,11 +9,11 @@ Leyenda: `[x]` hecho y verificado · `[~]` parcial (se indica qué falta) · `[ 
 ## Fase 1 — Setup
 
 - [x] T001 Jest descubre `catalog/**/*.spec.ts` (`pnpm --filter @cafeteria/api test`). Los `.gitkeep` se dejan: son del scaffolding del líder.
-- [x] T002 Migraciones `20261117150000_catalog-schema.ts` y `20261118120000_catalog-stock-consumption.ts`. Verificado con Postgres real: `tests/schema.spec.ts` y `pnpm db:migrate` (2 migraciones, segunda ejecución sin cambios) sobre un Postgres 17 desechable. **No se probó `down`.**
+- [x] T002 Migraciones `20261117150000_catalog-schema.ts` y `20261118120000_catalog-stock-consumption.ts`. Verificado con Postgres real: `tests/schema.spec.ts` y `pnpm db:migrate` (2 migraciones, segunda ejecución sin cambios) sobre un Postgres 17 desechable. `tests/migrations.spec.ts` (Postgres real): up → up (sin cambios) → `down` ×2 (deja el esquema vacío) → up (restaura el mismo esquema). Ambas migraciones son expand-only.
 
 ## Fase 2 — Fundacional
 
-- [x] T010 [P] `domain/money.ts` + spec.
+- [x] T010 [P] `domain/money.ts` + spec. El tipo `Money` viene ahora de `@cafeteria/contracts` (commit `a3e5e0b`, tras integrar `b4309f8` del líder); en el módulo solo quedan los helpers de validación de precio.
 - [x] T011 [P] `domain/allergens.ts` + spec.
 - [x] T012 [P] `domain/schedule.ts` + spec (bordes 07:00/11:00, zona horaria, cambio de día, fin de semana).
 - [x] T013 [P] `domain/authorization.ts` + spec (deny-by-default, personal vs. admin).
@@ -48,14 +48,14 @@ Leyenda: `[x]` hecho y verificado · `[~]` parcial (se indica qué falta) · `[ 
 
 ## Fase 6 — US4 (P2) Disponibilidad
 
-- [x] T050 [US4] `PATCH /admin/products/:id/availability`: personal marca agotado con efecto inmediato; rechaza precio (422) y `PUT` de producto (403); existencias 0 ⇒ agotado; el personal puede listar productos (`GET /admin/products` con `catalog.availability.write`). Autorización con mock de test; **la autorización real depende de Spec #2**.
+- [x] T050 [US4] `PATCH /admin/products/:id/availability`: personal marca agotado con efecto inmediato; rechaza precio (422) y `PUT` de producto (403); existencias 0 ⇒ agotado; el personal puede listar productos (`GET /admin/products` con `catalog.availability.write`). Autorización con mock de test inyectado por DI solo en pruebas (`catalog.http.spec.ts`; producción usa `DenyAllAuthorizer`); **la autorización real depende de Spec #2**.
 - [~] T051 [US4] `CatalogService.applyConfirmedSale(saleId, lines)`: descuento atómico (todo o nada), idempotente por `saleId` (tabla append-only `catalog.stock_consumptions`), bloqueo ordenado, agotado automático y auditoría. Probado de forma aislada con Postgres real: reintento, 12 ventas concurrentes sobre 5 unidades ⇒ 5 confirman, 8 envíos paralelos del mismo `saleId` ⇒ 1 descuento, venta rechazada no deja rastro. **No verificado con Orders** (no existe) ni expuesto por HTTP; el contrato `StockConsumptionPort` sigue pendiente de aprobación.
 - [~] T052 [US4] UI de disponibilidad/existencias (`app/admin/catalogo/productos`), operable con teclado; envía solo disponibilidad/existencias. Probada contra API stub. **Falta** E2E con sesión real y ocultar por rol (la UI aún no conoce el rol de la persona; la API responde 403 si no corresponde).
 
 ## Fase 7 — Cierre
 
 - [~] T060 Rendimiento local de `GET /menus` (~180 productos, 30 conexiones, 3000 peticiones): caché caliente p50 76 ms / p95 130 ms / p99 186 ms, 0 errores, 361 req/s; sin caché p95 68 ms (n=60, secuencial). El generador de carga corre en el mismo proceso que la API. **No es una prueba de carga representativa; SC-001 (p95 < 300 ms) no se declara cumplido.**
-- [~] T061 Node 24.22.3 (binario del paquete npm `node`, sin instalación global) + pnpm 10.12.4: `lint`, `typecheck`, `test` (forzado, sin caché de turbo), `build`, `test:ci`, `test:integration` (API y worker) y `test:e2e` en verde; `pnpm db:migrate` OK. **Falta**: cobertura, probar `down`, auditoría de dependencias.
+- [x] T061 Verificación independiente en Node 24.22.3 (binario del paquete npm `node`, sin instalación global), pnpm 10.12.4, Docker 29.0.1, tras el `cherry-pick` de `b4309f8`: `lint`, `typecheck`, `build` (exit 0); `turbo run test --force` (API 130 OK + 1 omitida opt-in; web 36; contracts 5; feature-flags 7; worker 5; ui 1); `test:ci` 67/67; `test:integration` API 5/5 y worker; `test:e2e` API; `pnpm coverage` (API: 94,5 % sentencias / 84,7 % ramas / 97,0 % funciones / 96,2 % líneas); `pnpm db:migrate` en Postgres 17 desechable (aplica las 2 migraciones; segunda ejecución «No migrations to run»); `down` probado (T002); E2E Playwright de Catálogo repetidos en Node 24: 6/6 menú + 8/8 administración (14/14) y los 4 genéricos; `pnpm audit`: 1178 dependencias, 0 vulnerabilidades, y Catálogo no modificó ningún `package.json` ni el lockfile.
 - [ ] T062 Revisión manual NVDA/VoiceOver (pendiente de una persona).
 - [~] T063 `evidence.md` y `checklists/requirements.md` actualizados; el spec no se da por terminado.
 
