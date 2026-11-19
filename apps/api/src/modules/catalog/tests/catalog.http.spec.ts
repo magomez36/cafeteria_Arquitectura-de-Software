@@ -598,4 +598,74 @@ describe('Catálogo vía HTTP (Postgres + Redis reales)', () => {
       expect(res.status).toBe(401);
     });
   });
+
+  describe('administración: validación, errores y límites', () => {
+    const missing = '3f2504e0-4f89-41d3-9a0c-0305e82c3399';
+
+    it('entradas inválidas se rechazan con un error documentado, sin trazas', async () => {
+      const bad = [
+        await api('POST', '/admin/products', {
+          actor: 'admin',
+          body: productBody({ priceMinor: 3.5 }),
+        }),
+        await api('POST', '/admin/products', {
+          actor: 'admin',
+          body: productBody({ priceMinor: -1 }),
+        }),
+        await api('POST', '/admin/products', {
+          actor: 'admin',
+          body: productBody({ imageUrl: 'http://inseguro.example/x.jpg' }),
+        }),
+        await api('POST', '/admin/menus', { actor: 'admin', body: { name: '' } }),
+        await api('GET', '/admin/menus/no-es-uuid', { actor: 'admin' }),
+      ];
+      for (const res of bad) {
+        expect(res.status).toBeGreaterThanOrEqual(400);
+        expect(res.status).toBeLessThan(500);
+        expect(res.body.error.code).toEqual(expect.any(String));
+        expect(JSON.stringify(res.body)).not.toMatch(/stack|node_modules/);
+      }
+    });
+
+    // El parser de JSON falla antes del filtro del controlador: responde el manejador global de Nest
+    // ({ statusCode, message }), no el formato { error: { code } } del catálogo. Pendiente del líder
+    // (filtro global en la plataforma); aquí solo se fija que sea 400 y sin traza.
+    it('un cuerpo JSON mal formado devuelve 400 (no 500) y no expone la traza', async () => {
+      const response = await fetch(`${base}/api/v1/catalog/admin/menus`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-test-actor': 'admin' },
+        body: '{no es json',
+      });
+      expect(response.status).toBe(400);
+      expect(JSON.stringify(await response.json())).not.toMatch(/stack|node_modules|\.js:\d+/);
+    });
+
+    it('un menú o producto inexistente da 404', async () => {
+      expect((await api('GET', `/admin/menus/${missing}`, { actor: 'admin' })).status).toBe(404);
+      expect((await api('GET', `/products/${missing}`)).status).toBe(404);
+    });
+
+    it('quitar una categoría exige If-Match vigente: con uno obsoleto 409 y no borra', async () => {
+      const seed = await seedMenu('Menú para quitar categoría');
+      const url = `/admin/menus/${seed.menuId}/categories/${seed.categoryId}`;
+      const stale = await api('DELETE', url, { actor: 'admin', ifMatch: '"0"' });
+      expect(stale.status).toBe(409);
+      const ok = await api('DELETE', url, { actor: 'admin', ifMatch: seed.etag });
+      expect(ok.status).toBe(200);
+      expect(ok.body.categories).toEqual([]);
+    });
+
+    it('el personal no puede editar productos ni crear menús (403); un anónimo recibe 401', async () => {
+      const seed = await seedMenu('Menú para permisos');
+      const put = await api('PUT', `/admin/products/${seed.productId}`, {
+        actor: 'staff',
+        body: productBody({ priceMinor: 1 }),
+      });
+      expect(put.status).toBe(403);
+      expect(
+        (await api('POST', '/admin/menus', { actor: 'staff', body: { name: 'x' } })).status,
+      ).toBe(403);
+      expect((await api('POST', '/admin/menus', { body: { name: 'x' } })).status).toBe(401);
+    });
+  });
 });
