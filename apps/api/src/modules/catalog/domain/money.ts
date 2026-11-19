@@ -1,8 +1,6 @@
-/** Estructuralmente idéntico a `Money` de @cafeteria/contracts (ver specs/003-menu-dinamico/contracts/shared-contracts-proposal.md §0). */
-export interface Money {
-  amountMinor: number;
-  currency: 'USD';
-}
+import type { Money } from '@cafeteria/contracts';
+
+export type { Money };
 
 export const MAX_PRICE_MINOR = 10_000_000;
 
